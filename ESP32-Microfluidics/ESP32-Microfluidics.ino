@@ -55,6 +55,8 @@ void setup() {
 int rawbrightness22 = 0;
 int rawbrightness23 = 0;
 
+bool checkbox1State = false;
+
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
 
@@ -92,14 +94,14 @@ void loop(){
               int mappedbrightness23 = map( rawbrightness23, -9000, 9000, 0, 255 );
               Serial.println(mappedbrightness23);
               analogWrite(output23, mappedbrightness23);
-            }
+            }/*
             else if (header.indexOf("GET /setBrightness22?value=") >= 0) {
               rawbrightness22 = header.substring(header.indexOf("value=") + 6).toInt();
               Serial.print("Setting brightness of GPIO 22 to: ");
               int mappedbrightness22 = map( rawbrightness22, -9000, 9000, 0, 255 );
               Serial.println(mappedbrightness22);
               analogWrite(output22, mappedbrightness22);
-            }
+            }*/
             
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
@@ -117,9 +119,8 @@ void loop(){
             client.println("<p><input type=\"range\" min=\"-9000\" max=\"9000\" value=\"" + String(rawbrightness23) + "\" class=\"slider\" id=\"brightness23\" onchange=\"updateBrightness(23)\"></p>");
             client.println("<script>function updateBrightness(pin) { var brightness = document.getElementById('brightness' + pin).value; window.location.href = '/setBrightness' + pin + '?value=' + brightness; }</script>");
             
-            // Display current brightness slider for GPIO 22
-            client.println("<p>GPIO 22 Brightness:</p>");
-            client.println("<p><input type=\"range\" min=\"-9000\" max=\"9000\" value=\"" + String(rawbrightness22) + "\" class=\"slider\" id=\"brightness22\" onchange=\"updateBrightness(22)\"></p>");
+            client.println("<p><input type=\"checkbox\" id=\"checkbox1\" " + String(checkbox1State) ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"toggleCheckbox1()\"> Checkbox 1</p>");
+            client.println("<p><input type=\"checkbox\" id=\"checkbox2\" style=\"display: inline-block;\" onchange=\"toggleCheckbox2()\"> Checkbox 2</p>");
             
             client.println("</body></html>");
             // The HTTP response ends with another blank line
