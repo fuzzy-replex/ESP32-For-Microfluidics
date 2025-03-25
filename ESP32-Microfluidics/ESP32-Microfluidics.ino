@@ -52,11 +52,10 @@ void setup() {
   server.begin();
 }
 
-int rawbrightness22 = 0;
-int rawbrightness23 = 0;
-
+int motorTurnVelocityRaw = 0;
+int motorTurnVelocity255 = 0;
+bool checkbox0State = false;
 bool checkbox1State = false;
-
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
 
@@ -86,22 +85,44 @@ void loop(){
             client.println("Connection: close");
             client.println();
 
-            
-            // turns the GPIOs on and off
+            // Update checkbox#States
+            if (header.indexOf("GET /setcheckbox0?state=") >= 0) {
+                String stateString = header.substring(header.indexOf("state=") + 6);
+                checkbox0State = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+            }
+            if (header.indexOf("GET /setcheckbox1?state=") >= 0) {
+                String stateString = header.substring(header.indexOf("state=") + 6);
+                checkbox1State = stateString.toInt(); //updates checkbox1 to 0 off or 1 on.
+            }
+
+            // Update motorTurnVelocity
             if (header.indexOf("GET /setBrightness23?value=") >= 0) {
-              rawbrightness23 = header.substring(header.indexOf("value=") + 6).toInt();
-              Serial.print("Setting brightness of GPIO 23 to: ");
-              int mappedbrightness23 = map( rawbrightness23, -9000, 9000, 0, 255 );
-              Serial.println(mappedbrightness23);
-              analogWrite(output23, mappedbrightness23);
-            }/*
-            else if (header.indexOf("GET /setBrightness22?value=") >= 0) {
-              rawbrightness22 = header.substring(header.indexOf("value=") + 6).toInt();
-              Serial.print("Setting brightness of GPIO 22 to: ");
-              int mappedbrightness22 = map( rawbrightness22, -9000, 9000, 0, 255 );
-              Serial.println(mappedbrightness22);
-              analogWrite(output22, mappedbrightness22);
-            }*/
+              motorTurnVelocityRaw = header.substring(header.indexOf("value=") + 6).toInt();
+              motorTurnVelocity255 = map( motorTurnVelocityRaw, -9000, 9000, 0, 255 );
+            }
+
+            // Update & Run Specified Motors
+            if (header.indexOf("GET /run") >= 0) {
+              if( checkbox0State == 1 ){
+                //Void updateMotor( 0, motorTurnVelocityRaw );
+                Serial.println(motorTurnVelocity255);
+                analogWrite(output23, motorTurnVelocity255);
+              }
+              if( checkbox1State == 1 ){
+                //Void updateMotor( 1, motorTurnVelocityRaw );
+                Serial.println(motorTurnVelocity255);
+                analogWrite(output22, motorTurnVelocity255);
+              }
+            }
+
+            /*
+            Note for later: 
+              Turn the slider into a textbox.
+                Rules for textbox: only accept -9000 to 9000
+                Only accept numbers
+              Create multiple textboxes for each speed and have a 
+              checkbox that changes from control all and some.
+            */
             
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
@@ -114,14 +135,22 @@ void loop(){
             // Web Page Heading
             client.println("<body><h1>ESP32-WROOM-32 Web Server</h1>");
             
-            // Display current brightness slider for GPIO 23
-            client.println("<p>GPIO 23 Brightness:</p>");
-            client.println("<p><input type=\"range\" min=\"-9000\" max=\"9000\" value=\"" + String(rawbrightness23) + "\" class=\"slider\" id=\"brightness23\" onchange=\"updateBrightness(23)\"></p>");
+            // Html Slider
+            client.println("<p>motorTurnVelocityRaw:</p>");
+            client.println("<p><input type=\"range\" min=\"-9000\" max=\"9000\" value=\"" + String(motorTurnVelocityRaw) + "\" class=\"slider\" id=\"brightness23\" onchange=\"updateBrightness(23)\"></p>");
             client.println("<script>function updateBrightness(pin) { var brightness = document.getElementById('brightness' + pin).value; window.location.href = '/setBrightness' + pin + '?value=' + brightness; }</script>");
             
-            client.println("<p><input type=\"checkbox\" id=\"checkbox1\" " + String(checkbox1State) ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"toggleCheckbox1()\"> Checkbox 1</p>");
-            client.println("<p><input type=\"checkbox\" id=\"checkbox2\" style=\"display: inline-block;\" onchange=\"toggleCheckbox2()\"> Checkbox 2</p>");
-            
+            // Html Checkboxes for motors 0 -> 7
+            // 0
+            client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox0State) + "\" id=\"checkbox0\" " + String(checkbox0State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox0()\"> Motor 0</p>");
+            client.println("<script>function togglecheckbox0() { var state = document.getElementById('checkbox0').checked ? 1 : 0; window.location.href = '/setcheckbox0?state=' + state; }</script>");
+            // 1
+            client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox1State) + "\" id=\"checkbox1\" " + String(checkbox1State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
+            client.println("<script>function togglecheckbox1() { var state = document.getElementById('checkbox1').checked ? 1 : 0; window.location.href = '/setcheckbox1?state=' + state; }</script>");
+
+            // Execute Button
+            client.println("<p><a href=\"/run\"><button class=\"button\">Run</button></a></p>");
+
             client.println("</body></html>");
             // The HTTP response ends with another blank line
             client.println();
