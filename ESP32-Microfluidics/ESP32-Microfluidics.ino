@@ -54,10 +54,10 @@ void setup() {
 
 static int MRV = 9000; //max rotational velocity
 
-int motorTurnVelocityRaw = 0;
-int motorTurnVelocity255 = 0;
-bool checkbox0State = false;
-bool checkbox1State = false;
+int motorTurnVelocityRaw[8] = {0};
+int motorTurnVelocity255[8] = {0};
+bool checkboxState[8] = {false}; //checkboxState[0] never used
+
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
 
@@ -87,37 +87,157 @@ void loop(){
             client.println("Connection: close");
             client.println();
 
-            // Update checkbox#States
-            if (header.indexOf("GET /setcheckbox0?state=") >= 0) {
-                String stateString = header.substring(header.indexOf("state=") + 6);
-                checkbox0State = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+            // Update checkbox#States (0 is motor all)
+            if (header.indexOf("GET /setMotors") >= 0) {
+              for( int i = 0; i < 8; i++ ){
+                motorTurnVelocityRaw[i] = motorTurnVelocityRaw[0];
+                motorTurnVelocity255[i] = map( motorTurnVelocityRaw[0], -MRV, MRV, 0, 255 );
+              }
             }
             if (header.indexOf("GET /setcheckbox1?state=") >= 0) {
-                String stateString = header.substring(header.indexOf("state=") + 6);
-                checkbox1State = stateString.toInt(); //updates checkbox1 to 0 off or 1 on.
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[1] = stateString.toInt(); //updates checkbox1 to 0 off or 1 on.
+              if( checkboxState[1] == 0 ){
+                //Void updateMotor( &stepper_driver_0, 0 );
+                analogWrite(output23, 0);
+              }
+            }
+            if (header.indexOf("GET /setcheckbox2?state=") >= 0) {
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[2] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkboxState[2] == 0 ){
+                //Void updateMotor( &stepper_driver_1, 0 );
+                analogWrite(output22, 0);
+              }
+            }
+            if (header.indexOf("GET /setcheckbox3?state=") >= 0) {
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[3] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkboxState[3] == 0 ){
+                //Void updateMotor( &stepper_driver_2, 0 );
+              }
+            }
+            if (header.indexOf("GET /setcheckbox4?state=") >= 0) {
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[4] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkboxState[4] == 0 ){
+                //Void updateMotor( &stepper_driver_3, 0 );
+              }
+            }
+            if (header.indexOf("GET /setcheckbox5?state=") >= 0) {
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[5] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkboxState[5] == 0 ){
+                //Void updateMotor( &stepper_driver_4, 0 );
+              }
+            }
+            if (header.indexOf("GET /setcheckbox6?state=") >= 0) {
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[6] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkboxState[6] == 0 ){
+                //Void updateMotor( &stepper_driver_5, 0 );
+              }
+            }
+            if (header.indexOf("GET /setcheckbox7?state=") >= 0) {
+              String stateString = header.substring(header.indexOf("state=") + 6);
+              checkboxState[7] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkboxState[7] == 0 ){
+                //Void updateMotor( &stepper_driver_6, 0 );
+              }
             }
 
-            // Update motorTurnVelocity
-            if (header.indexOf("GET /setMRV23?value=") >= 0) {
-              motorTurnVelocityRaw = header.substring(header.indexOf("value=") + 6).toInt();
-              if (motorTurnVelocityRaw > MRV) //fix -9000 to 9000 range limits
-                motorTurnVelocityRaw = MRV;      // MRV is a global static variable
-              if (motorTurnVelocityRaw < -MRV)
-                motorTurnVelocityRaw = -MRV;
-              motorTurnVelocity255 = map( motorTurnVelocityRaw, -MRV, MRV, 0, 255 );
+            // Update motorTurnVelocity (0 is motor all)
+            if (header.indexOf("GET /setMRV0?value=") >= 0) {
+              motorTurnVelocityRaw[0] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[0] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[0] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[0] < -MRV)
+                motorTurnVelocityRaw[0] = -MRV;
+              motorTurnVelocity255[0] = map( motorTurnVelocityRaw[0], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV1?value=") >= 0) {
+              motorTurnVelocityRaw[1] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[1] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[1] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[1] < -MRV)
+                motorTurnVelocityRaw[1] = -MRV;
+              motorTurnVelocity255[1] = map( motorTurnVelocityRaw[1], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV2?value=") >= 0) {
+              motorTurnVelocityRaw[2] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[2] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[2] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[2] < -MRV)
+                motorTurnVelocityRaw[2] = -MRV;
+              motorTurnVelocity255[2] = map( motorTurnVelocityRaw[2], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV3?value=") >= 0) {
+              motorTurnVelocityRaw[3] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[3] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[3] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[3] < -MRV)
+                motorTurnVelocityRaw[3] = -MRV;
+              motorTurnVelocity255[3] = map( motorTurnVelocityRaw[3], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV4?value=") >= 0) {
+              motorTurnVelocityRaw[4] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[4] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[4] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[4] < -MRV)
+                motorTurnVelocityRaw[4] = -MRV;
+              motorTurnVelocity255[4] = map( motorTurnVelocityRaw[4], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV5?value=") >= 0) {
+              motorTurnVelocityRaw[5] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[5] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[5] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[5] < -MRV)
+                motorTurnVelocityRaw[5] = -MRV;
+              motorTurnVelocity255[5] = map( motorTurnVelocityRaw[5], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV6?value=") >= 0) {
+              motorTurnVelocityRaw[6] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[6] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[6] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[6] < -MRV)
+                motorTurnVelocityRaw[6] = -MRV;
+              motorTurnVelocity255[6] = map( motorTurnVelocityRaw[6], -MRV, MRV, 0, 255 );
+            }
+            if (header.indexOf("GET /setMRV7?value=") >= 0) {
+              motorTurnVelocityRaw[7] = header.substring(header.indexOf("value=") + 6).toInt();
+              if (motorTurnVelocityRaw[7] > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw[7] = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw[7] < -MRV)
+                motorTurnVelocityRaw[7] = -MRV;
+              motorTurnVelocity255[7] = map( motorTurnVelocityRaw[7], -MRV, MRV, 0, 255 );
             }
 
             // Update & Run Specified Motors
             if (header.indexOf("GET /run") >= 0) {
-              if( checkbox0State == 1 ){
-                //Void updateMotor( 0, motorTurnVelocityRaw );
-                Serial.println(motorTurnVelocity255);
-                analogWrite(output23, motorTurnVelocity255);
+              if( checkboxState[1] == 1 ){
+                //Void updateMotor( &stepper_driver_0, motorTurnVelocityRaw );
+                Serial.println(motorTurnVelocity255[1]);
+                analogWrite(output23, motorTurnVelocity255[1]);
               }
-              if( checkbox1State == 1 ){
-                //Void updateMotor( 1, motorTurnVelocityRaw );
-                Serial.println(motorTurnVelocity255);
-                analogWrite(output22, motorTurnVelocity255);
+              if( checkboxState[2] == 1 ){
+                //Void updateMotor( &stepper_driver_1, motorTurnVelocityRaw );
+                Serial.println(motorTurnVelocity255[2]);
+                analogWrite(output22, motorTurnVelocity255[2]);
+              }
+              if( checkboxState[3] == 1 ){
+                //Void updateMotor( &stepper_driver_2, motorTurnVelocityRaw );
+              }
+              if( checkboxState[4] == 1 ){
+                //Void updateMotor( &stepper_driver_3, motorTurnVelocityRaw );
+              }
+              if( checkboxState[5] == 1 ){
+                //Void updateMotor( &stepper_driver_4, motorTurnVelocityRaw );
+              }
+              if( checkboxState[6] == 1 ){
+                //Void updateMotor( &stepper_driver_5, motorTurnVelocityRaw );
+              }
+              if( checkboxState[7] == 1 ){
+                //Void updateMotor( &stepper_driver_6, motorTurnVelocityRaw );
               }
             }
 
@@ -125,6 +245,11 @@ void loop(){
             Note for later:
               Create multiple textboxes for each speed and have a
               checkbox that changes from control all and some.
+
+              MotorTurnVelocity255[7] = all motors
+              Implement checkbox for all or individual.
+
+              * check that html output right urls and use proper variables to match above.
             */
             
             // Display the HTML web page
@@ -139,29 +264,84 @@ void loop(){
             client.println(".wrapper { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin: 0 auto; } </style> ");
 
             // Web Page Heading
-            client.println("<body><h1>ESP32-WROOM-32 Web Server</h1>");
+            client.println("<body><h1>Microfluidics Pump Controller</h1>");
             
-            // Html textbox
+            // All Motor Control (0)
             client.println("<p>Motor Rotational Velocity:</p>");
             client.println("<p style=\"font-size:10px;\">Accepted Range {" + String(-MRV) + ", " + String(MRV) + "}</p>");
-            client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw) + "\" id=\"MotorRotationalVelocity\" onchange=\"updateMRV(23)\"></p>");
-            client.println("<script>function updateMRV(pin) { var MRV = document.getElementById('MotorRotationalVelocity').value; window.location.href = '/setMRV' + pin + '?value=' + MRV; }</script>");
-            
+            client.println("<div class=\"wrapper\">");
+              client.println("<div class=\"myDiv\">");
+                //set motors button
+                client.println("<p><a href=\"/setMotors\"><button>Set All Motors</button></a></p>");
+
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[0]) + "\" id=\"MotorRotationalVelocity0\" onchange=\"updateMRV0()\"></p>");
+                client.println("<script>function updateMRV0() { var MRV0 = document.getElementById('MotorRotationalVelocity0').value; window.location.href = '/setMRV0?value=' + MRV0; }</script>");
+              client.println("</div>");
+            client.println("</div>");
             // Html Checkboxes & numBoxes for motors 0 -> 7
-              // 0 (checkbox)
+              // 1 (checkbox)
             client.println("<div class=\"wrapper\">");
 
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox0State) + "\" id=\"checkbox0\" " + String(checkbox0State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox0()\"> Motor 0</p>");
-                client.println("<script>function togglecheckbox0() { var state = document.getElementById('checkbox0').checked ? 1 : 0; window.location.href = '/setcheckbox0?state=' + state; }</script>");
-                 // 0 (textbox)
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[1]) + "\" id=\"checkbox1\" " + String(checkboxState[1] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
+                client.println("<script>function togglecheckbox1() { var state = document.getElementById('checkbox1').checked ? 1 : 0; window.location.href = '/setcheckbox1?state=' + state; }</script>");
+                 // 1 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[1]) + "\" id=\"MotorRotationalVelocity1\" onchange=\"updateMRV1()\"></p>");
+                client.println("<script>function updateMRV1() { var MRV1 = document.getElementById('MotorRotationalVelocity1').value; window.location.href = '/setMRV1?value=' + MRV1; }</script>");
               client.println("</div>");
 
-              // 1 (checkbox)
+              // 2 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox1State) + "\" id=\"checkbox1\" " + String(checkbox1State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
-                client.println("<script>function togglecheckbox1() { var state = document.getElementById('checkbox1').checked ? 1 : 0; window.location.href = '/setcheckbox1?state=' + state; }</script>");
-                  // 1 (textbox)
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[2]) + "\" id=\"checkbox2\" " + String(checkboxState[2] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox2()\"> Motor 2</p>");
+                client.println("<script>function togglecheckbox2() { var state = document.getElementById('checkbox2').checked ? 1 : 0; window.location.href = '/setcheckbox2?state=' + state; }</script>");
+                  // 2 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[2]) + "\" id=\"MotorRotationalVelocity2\" onchange=\"updateMRV2()\"></p>");
+                client.println("<script>function updateMRV2() { var MRV2 = document.getElementById('MotorRotationalVelocity2').value; window.location.href = '/setMRV2?value=' + MRV2; }</script>");
+              client.println("</div>");
+
+              // 3 (checkbox)
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[3]) + "\" id=\"checkbox3\" " + String(checkboxState[3] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox3()\"> Motor 3</p>");
+                client.println("<script>function togglecheckbox3() { var state = document.getElementById('checkbox3').checked ? 1 : 0; window.location.href = '/setcheckbox3?state=' + state; }</script>");
+                  // 3 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[3]) + "\" id=\"MotorRotationalVelocity3\" onchange=\"updateMRV3()\"></p>");
+                client.println("<script>function updateMRV3() { var MRV3 = document.getElementById('MotorRotationalVelocity3').value; window.location.href = '/setMRV3?value=' + MRV3; }</script>");
+              client.println("</div>");
+
+              // 4 (checkbox)
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[4]) + "\" id=\"checkbox4\" " + String(checkboxState[4] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox4()\"> Motor 4</p>");
+                client.println("<script>function togglecheckbox4() { var state = document.getElementById('checkbox4').checked ? 1 : 0; window.location.href = '/setcheckbox4?state=' + state; }</script>");
+                  // 4 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[4]) + "\" id=\"MotorRotationalVelocity4\" onchange=\"updateMRV4()\"></p>");
+                client.println("<script>function updateMRV4() { var MRV4 = document.getElementById('MotorRotationalVelocity4').value; window.location.href = '/setMRV4?value=' + MRV4; }</script>");
+              client.println("</div>");
+
+              // 5 (checkbox)
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[5]) + "\" id=\"checkbox5\" " + String(checkboxState[5] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox5()\"> Motor 5</p>");
+                client.println("<script>function togglecheckbox5() { var state = document.getElementById('checkbox5').checked ? 1 : 0; window.location.href = '/setcheckbox5?state=' + state; }</script>");
+                  // 5 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[5]) + "\" id=\"MotorRotationalVelocity5\" onchange=\"updateMRV5()\"></p>");
+                client.println("<script>function updateMRV5() { var MRV5 = document.getElementById('MotorRotationalVelocity5').value; window.location.href = '/setMRV5?value=' + MRV5; }</script>");
+              client.println("</div>");
+
+              // 6 (checkbox)
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[6]) + "\" id=\"checkbox6\" " + String(checkboxState[6] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox6()\"> Motor 6</p>");
+                client.println("<script>function togglecheckbox6() { var state = document.getElementById('checkbox6').checked ? 1 : 0; window.location.href = '/setcheckbox6?state=' + state; }</script>");
+                  // 6 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[6]) + "\" id=\"MotorRotationalVelocity6\" onchange=\"updateMRV6()\"></p>");
+                client.println("<script>function updateMRV6() { var MRV6 = document.getElementById('MotorRotationalVelocity6').value; window.location.href = '/setMRV6?value=' + MRV6; }</script>");
+              client.println("</div>");
+
+              // 7 (checkbox)
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[7]) + "\" id=\"checkbox7\" " + String(checkboxState[7] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox7()\"> Motor 7</p>");
+                client.println("<script>function togglecheckbox7() { var state = document.getElementById('checkbox7').checked ? 1 : 0; window.location.href = '/setcheckbox7?state=' + state; }</script>");
+                  // 7 (textbox)
+                client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[7]) + "\" id=\"MotorRotationalVelocity7\" onchange=\"updateMRV7()\"></p>");
+                client.println("<script>function updateMRV7() { var MRV7 = document.getElementById('MotorRotationalVelocity7').value; window.location.href = '/setMRV7?value=' + MRV7; }</script>");
               client.println("</div>");
             
             client.println("</div>"); //wrapper
