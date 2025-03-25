@@ -52,6 +52,8 @@ void setup() {
   server.begin();
 }
 
+static int MRV = 9000; //max rotational velocity
+
 int motorTurnVelocityRaw = 0;
 int motorTurnVelocity255 = 0;
 bool checkbox0State = false;
@@ -96,9 +98,13 @@ void loop(){
             }
 
             // Update motorTurnVelocity
-            if (header.indexOf("GET /setBrightness23?value=") >= 0) {
+            if (header.indexOf("GET /setMRV23?value=") >= 0) {
               motorTurnVelocityRaw = header.substring(header.indexOf("value=") + 6).toInt();
-              motorTurnVelocity255 = map( motorTurnVelocityRaw, -9000, 9000, 0, 255 );
+              if (motorTurnVelocityRaw > MRV) //fix -9000 to 9000 range limits
+                motorTurnVelocityRaw = MRV;      // MRV is a global static variable
+              if (motorTurnVelocityRaw < -MRV)
+                motorTurnVelocityRaw = -MRV;
+              motorTurnVelocity255 = map( motorTurnVelocityRaw, -MRV, MRV, 0, 255 );
             }
 
             // Update & Run Specified Motors
@@ -116,11 +122,8 @@ void loop(){
             }
 
             /*
-            Note for later: 
-              Turn the slider into a textbox.
-                Rules for textbox: only accept -9000 to 9000
-                Only accept numbers
-              Create multiple textboxes for each speed and have a 
+            Note for later:
+              Create multiple textboxes for each speed and have a
               checkbox that changes from control all and some.
             */
             
@@ -128,25 +131,41 @@ void loop(){
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the brightness control sliders
+            // CSS to style the MRV control sliders
             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;} ");
             client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px; text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;} ");
-            client.println(".slider { width: 300px; } </style>");            
+            client.println(".slider { width: 300px; } "); 
+            client.println(".myDiv { border: 4px outset lightblue; } ");
+            client.println(".wrapper { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin: 0 auto; } </style> ");
+
             // Web Page Heading
             client.println("<body><h1>ESP32-WROOM-32 Web Server</h1>");
             
-            // Html Slider
-            client.println("<p>motorTurnVelocityRaw:</p>");
-            client.println("<p><input type=\"range\" min=\"-9000\" max=\"9000\" value=\"" + String(motorTurnVelocityRaw) + "\" class=\"slider\" id=\"brightness23\" onchange=\"updateBrightness(23)\"></p>");
-            client.println("<script>function updateBrightness(pin) { var brightness = document.getElementById('brightness' + pin).value; window.location.href = '/setBrightness' + pin + '?value=' + brightness; }</script>");
+            // Html textbox
+            client.println("<p>Motor Rotational Velocity:</p>");
+            client.println("<p style=\"font-size:10px;\">Accepted Range {" + String(-MRV) + ", " + String(MRV) + "}</p>");
+            client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw) + "\" id=\"MotorRotationalVelocity\" onchange=\"updateMRV(23)\"></p>");
+            client.println("<script>function updateMRV(pin) { var MRV = document.getElementById('MotorRotationalVelocity').value; window.location.href = '/setMRV' + pin + '?value=' + MRV; }</script>");
             
-            // Html Checkboxes for motors 0 -> 7
-            // 0
-            client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox0State) + "\" id=\"checkbox0\" " + String(checkbox0State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox0()\"> Motor 0</p>");
-            client.println("<script>function togglecheckbox0() { var state = document.getElementById('checkbox0').checked ? 1 : 0; window.location.href = '/setcheckbox0?state=' + state; }</script>");
-            // 1
-            client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox1State) + "\" id=\"checkbox1\" " + String(checkbox1State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
-            client.println("<script>function togglecheckbox1() { var state = document.getElementById('checkbox1').checked ? 1 : 0; window.location.href = '/setcheckbox1?state=' + state; }</script>");
+            // Html Checkboxes & numBoxes for motors 0 -> 7
+              // 0 (checkbox)
+            client.println("<div class=\"wrapper\">");
+
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox0State) + "\" id=\"checkbox0\" " + String(checkbox0State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox0()\"> Motor 0</p>");
+                client.println("<script>function togglecheckbox0() { var state = document.getElementById('checkbox0').checked ? 1 : 0; window.location.href = '/setcheckbox0?state=' + state; }</script>");
+                 // 0 (textbox)
+              client.println("</div>");
+
+              // 1 (checkbox)
+              client.println("<div class=\"myDiv\">");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkbox1State) + "\" id=\"checkbox1\" " + String(checkbox1State ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
+                client.println("<script>function togglecheckbox1() { var state = document.getElementById('checkbox1').checked ? 1 : 0; window.location.href = '/setcheckbox1?state=' + state; }</script>");
+                  // 1 (textbox)
+              client.println("</div>");
+            
+            client.println("</div>"); //wrapper
+
 
             // Execute Button
             client.println("<p><a href=\"/run\"><button class=\"button\">Run</button></a></p>");
