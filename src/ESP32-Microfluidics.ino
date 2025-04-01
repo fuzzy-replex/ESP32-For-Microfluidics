@@ -26,6 +26,14 @@ unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
 
+//Main Loop Global Variables{
+static int MRV = 9000; //max rotational velocity
+
+int motorTurnVelocityRaw[8] = {0};
+int motorTurnVelocity255[8] = {0};
+bool checkBoxState[8] = {false}; //checkBoxState[0] never used
+//}
+
 void setup() {
   Serial.begin(115200);
   // Initialize the output variables as outputs
@@ -52,11 +60,47 @@ void setup() {
   server.begin();
 }
 
-static int MRV = 9000; //max rotational velocity
+//functions
+bool checkBoxToggleOff( int num ){
+  switch (num){
+    case 1:
+      analogWrite(output23, 0);
+      //Void updateMotor( &stepper_driver_1, 0 );
+      break;
+    case 2:
+      analogWrite(output22, 0);
+      //Void updateMotor( &stepper_driver_2, 0 );
+      break;
+    case 3:
+      //Void updateMotor( &stepper_driver_2, 0 );
+      break;
+    case 4:
+      //Void updateMotor( &stepper_driver_2, 0 );
+      break;
+    case 5:
+      //Void updateMotor( &stepper_driver_2, 0 );
+      break;
+    case 6:
+      //Void updateMotor( &stepper_driver_2, 0 );
+      break;
+    case 7:
+      //Void updateMotor( &stepper_driver_2, 0 );
+      break;
+  }
+  if( checkBoxState[num] == false )
+    return true;
+  else
+    checkBoxState[num] = false;
+    return false;
+}
 
-int motorTurnVelocityRaw[8] = {0};
-int motorTurnVelocity255[8] = {0};
-bool checkboxState[8] = {false}; //checkboxState[0] never used
+bool checkBoxToggleOn( int num ){
+  if( checkBoxState[num] == true )
+    return true;
+  else
+    checkBoxState[num] = true;
+    return false;
+}
 
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
@@ -96,53 +140,65 @@ void loop(){
             }
             if (header.indexOf("GET /setcheckbox1?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[1] = stateString.toInt(); //updates checkbox1 to 0 off or 1 on.
-              if( checkboxState[1] == 0 ){
+              checkBoxState[1] = stateString.toInt(); //updates checkbox1 to 0 off or 1 on.
+              if( checkBoxState[1] == 0 ){
                 //Void updateMotor( &stepper_driver_0, 0 );
                 analogWrite(output23, 0);
               }
             }
             if (header.indexOf("GET /setcheckbox2?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[2] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkboxState[2] == 0 ){
+              checkBoxState[2] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkBoxState[2] == 0 ){
                 //Void updateMotor( &stepper_driver_1, 0 );
                 analogWrite(output22, 0);
               }
             }
             if (header.indexOf("GET /setcheckbox3?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[3] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkboxState[3] == 0 ){
+              checkBoxState[3] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkBoxState[3] == 0 ){
                 //Void updateMotor( &stepper_driver_2, 0 );
               }
             }
             if (header.indexOf("GET /setcheckbox4?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[4] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkboxState[4] == 0 ){
+              checkBoxState[4] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkBoxState[4] == 0 ){
                 //Void updateMotor( &stepper_driver_3, 0 );
               }
             }
             if (header.indexOf("GET /setcheckbox5?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[5] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkboxState[5] == 0 ){
+              checkBoxState[5] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkBoxState[5] == 0 ){
                 //Void updateMotor( &stepper_driver_4, 0 );
               }
             }
             if (header.indexOf("GET /setcheckbox6?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[6] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkboxState[6] == 0 ){
+              checkBoxState[6] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkBoxState[6] == 0 ){
                 //Void updateMotor( &stepper_driver_5, 0 );
               }
             }
             if (header.indexOf("GET /setcheckbox7?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkboxState[7] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkboxState[7] == 0 ){
+              checkBoxState[7] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
+              if( checkBoxState[7] == 0 ){
                 //Void updateMotor( &stepper_driver_6, 0 );
+              }
+            }
+
+            // on and off checkbox toggle logic
+            if (header.indexOf("GET /setCheckBoxesOn") >= 0) {
+              for( int i = 1; i < 8; i++){
+                checkBoxState[i] = true;
+              }
+            }
+            if (header.indexOf("GET /setCheckBoxesOff") >= 0) {
+              for( int i = 1; i < 8; i++){
+                checkBoxState[i] = false;
               }
             }
 
@@ -214,32 +270,48 @@ void loop(){
 
             // Update & Run Specified Motors
             if (header.indexOf("GET /run") >= 0) {
-              if( checkboxState[1] == 1 ){
+              if( checkBoxState[1] == 1 ){
                 //Void updateMotor( &stepper_driver_0, motorTurnVelocityRaw );
                 Serial.println(motorTurnVelocity255[1]);
                 analogWrite(output23, motorTurnVelocity255[1]);
               }
-              if( checkboxState[2] == 1 ){
+              if( checkBoxState[2] == 1 ){
                 //Void updateMotor( &stepper_driver_1, motorTurnVelocityRaw );
                 Serial.println(motorTurnVelocity255[2]);
                 analogWrite(output22, motorTurnVelocity255[2]);
               }
-              if( checkboxState[3] == 1 ){
+              if( checkBoxState[3] == 1 ){
                 //Void updateMotor( &stepper_driver_2, motorTurnVelocityRaw );
               }
-              if( checkboxState[4] == 1 ){
+              if( checkBoxState[4] == 1 ){
                 //Void updateMotor( &stepper_driver_3, motorTurnVelocityRaw );
               }
-              if( checkboxState[5] == 1 ){
+              if( checkBoxState[5] == 1 ){
                 //Void updateMotor( &stepper_driver_4, motorTurnVelocityRaw );
               }
-              if( checkboxState[6] == 1 ){
+              if( checkBoxState[6] == 1 ){
                 //Void updateMotor( &stepper_driver_5, motorTurnVelocityRaw );
               }
-              if( checkboxState[7] == 1 ){
+              if( checkBoxState[7] == 1 ){
                 //Void updateMotor( &stepper_driver_6, motorTurnVelocityRaw );
               }
             }
+
+            if (header.indexOf("GET /kill") >= 0) {
+              for( int i = 1; i < 8; i++){
+                checkBoxState[i] == false; //checkBoxState[0] never used
+              }
+              analogWrite(output23, 0);
+              analogWrite(output22, 0);
+              //Void updateMotor( &stepper_driver_1, 0 );
+              //Void updateMotor( &stepper_driver_2, 0 );
+              //Void updateMotor( &stepper_driver_3, 0 );
+              //Void updateMotor( &stepper_driver_4, 0 );
+              //Void updateMotor( &stepper_driver_5, 0 );
+              //Void updateMotor( &stepper_driver_6, 0 );
+              //Void updateMotor( &stepper_driver_7, 0 );
+            }
+
 
             /*
             Note for later:
@@ -277,13 +349,20 @@ void loop(){
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[0]) + "\" id=\"MotorRotationalVelocity0\" onchange=\"updateMRV0()\"></p>");
                 client.println("<script>function updateMRV0() { var MRV0 = document.getElementById('MotorRotationalVelocity0').value; window.location.href = '/setMRV0?value=' + MRV0; }</script>");
               client.println("</div>");
+              client.println("<div class=\"myDiv\">");
+                //set checkboxes button ON
+                client.println("<p><a href=\"/setCheckBoxesOn\"><button>Checkboxes On</button></a></p>");
+
+                //set checkboxes button ON
+                client.println("<p><a href=\"/setCheckBoxesOff\"><button>Checkboxes Off</button></a></p>");
+              client.println("</div>");
             client.println("</div>");
             // Html Checkboxes & numBoxes for motors 0 -> 7
               // 1 (checkbox)
             client.println("<div class=\"wrapper\">");
 
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[1]) + "\" id=\"checkbox1\" " + String(checkboxState[1] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[1]) + "\" id=\"checkbox1\" " + String(checkBoxState[1] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox1()\"> Motor 1</p>");
                 client.println("<script>function togglecheckbox1() { var state = document.getElementById('checkbox1').checked ? 1 : 0; window.location.href = '/setcheckbox1?state=' + state; }</script>");
                  // 1 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[1]) + "\" id=\"MotorRotationalVelocity1\" onchange=\"updateMRV1()\"></p>");
@@ -292,7 +371,7 @@ void loop(){
 
               // 2 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[2]) + "\" id=\"checkbox2\" " + String(checkboxState[2] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox2()\"> Motor 2</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[2]) + "\" id=\"checkbox2\" " + String(checkBoxState[2] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox2()\"> Motor 2</p>");
                 client.println("<script>function togglecheckbox2() { var state = document.getElementById('checkbox2').checked ? 1 : 0; window.location.href = '/setcheckbox2?state=' + state; }</script>");
                   // 2 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[2]) + "\" id=\"MotorRotationalVelocity2\" onchange=\"updateMRV2()\"></p>");
@@ -301,7 +380,7 @@ void loop(){
 
               // 3 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[3]) + "\" id=\"checkbox3\" " + String(checkboxState[3] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox3()\"> Motor 3</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[3]) + "\" id=\"checkbox3\" " + String(checkBoxState[3] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox3()\"> Motor 3</p>");
                 client.println("<script>function togglecheckbox3() { var state = document.getElementById('checkbox3').checked ? 1 : 0; window.location.href = '/setcheckbox3?state=' + state; }</script>");
                   // 3 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[3]) + "\" id=\"MotorRotationalVelocity3\" onchange=\"updateMRV3()\"></p>");
@@ -310,7 +389,7 @@ void loop(){
 
               // 4 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[4]) + "\" id=\"checkbox4\" " + String(checkboxState[4] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox4()\"> Motor 4</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[4]) + "\" id=\"checkbox4\" " + String(checkBoxState[4] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox4()\"> Motor 4</p>");
                 client.println("<script>function togglecheckbox4() { var state = document.getElementById('checkbox4').checked ? 1 : 0; window.location.href = '/setcheckbox4?state=' + state; }</script>");
                   // 4 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[4]) + "\" id=\"MotorRotationalVelocity4\" onchange=\"updateMRV4()\"></p>");
@@ -319,7 +398,7 @@ void loop(){
 
               // 5 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[5]) + "\" id=\"checkbox5\" " + String(checkboxState[5] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox5()\"> Motor 5</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[5]) + "\" id=\"checkbox5\" " + String(checkBoxState[5] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox5()\"> Motor 5</p>");
                 client.println("<script>function togglecheckbox5() { var state = document.getElementById('checkbox5').checked ? 1 : 0; window.location.href = '/setcheckbox5?state=' + state; }</script>");
                   // 5 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[5]) + "\" id=\"MotorRotationalVelocity5\" onchange=\"updateMRV5()\"></p>");
@@ -328,7 +407,7 @@ void loop(){
 
               // 6 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[6]) + "\" id=\"checkbox6\" " + String(checkboxState[6] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox6()\"> Motor 6</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[6]) + "\" id=\"checkbox6\" " + String(checkBoxState[6] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox6()\"> Motor 6</p>");
                 client.println("<script>function togglecheckbox6() { var state = document.getElementById('checkbox6').checked ? 1 : 0; window.location.href = '/setcheckbox6?state=' + state; }</script>");
                   // 6 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[6]) + "\" id=\"MotorRotationalVelocity6\" onchange=\"updateMRV6()\"></p>");
@@ -337,7 +416,7 @@ void loop(){
 
               // 7 (checkbox)
               client.println("<div class=\"myDiv\">");
-                client.println("<p><input type=\"checkbox\" value=\"" + String(checkboxState[7]) + "\" id=\"checkbox7\" " + String(checkboxState[7] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox7()\"> Motor 7</p>");
+                client.println("<p><input type=\"checkbox\" value=\"" + String(checkBoxState[7]) + "\" id=\"checkbox7\" " + String(checkBoxState[7] ? "checked" : "") + " style=\"display: inline-block;\" onchange=\"togglecheckbox7()\"> Motor 7</p>");
                 client.println("<script>function togglecheckbox7() { var state = document.getElementById('checkbox7').checked ? 1 : 0; window.location.href = '/setcheckbox7?state=' + state; }</script>");
                   // 7 (textbox)
                 client.println("<p><input type=\"number\" min=\"" + String(-MRV) + "\" max=\"" + String(MRV) + "\" value=\"" + String(motorTurnVelocityRaw[7]) + "\" id=\"MotorRotationalVelocity7\" onchange=\"updateMRV7()\"></p>");
@@ -348,7 +427,10 @@ void loop(){
 
 
             // Execute Button
-            client.println("<p><a href=\"/run\"><button class=\"button\">Run</button></a></p>");
+            client.println("<p><a href=\"/run\"><button class=\"button\" style=\"color: MediumSeaGreen\">Run</button></a></p>");
+
+            // Kill Button
+            client.println("<p><a href=\"/kill\"><button class=\"button\" style=\"color: Tomato\";>Kill</button></a></p>");
 
             client.println("</body></html>");
             // The HTTP response ends with another blank line
