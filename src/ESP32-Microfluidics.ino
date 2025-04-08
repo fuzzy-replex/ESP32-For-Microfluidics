@@ -1,12 +1,11 @@
 #include <WiFi.h>
+#include <WebServer.h>
 #include <string>
+#include "Charzard.h"
 
 // Replace with your network credentials
 const char* ssid     = "YourInAComaWakeUp";
 const char* password = "WakeUpNathan";
-
-// Set web server port number to 80
-WiFiServer server(80);
 
 // Variable to store the HTTP request
 String header;
@@ -34,6 +33,21 @@ int motorTurnVelocity255[8] = {0};
 bool checkBoxState[8] = {false}; //checkBoxState[0] never used
 //}
 
+//Fancy XML wizardry
+
+char XML[200]; //XML buffer
+char buf[32]; //buffer for char operations
+
+IPAddress PageIP(192, 168, 1, 1); //IP address of the page
+IPAddress gateway(192, 168, 1, 1); //IP address of the page
+IPAddress subnet(255, 255, 255, 1); //IP address of the page
+IPAddress ip; //IP address of the page
+
+// Set web server port number to 80
+// WiFiServer server(80); for WiFi.h OLD
+WebServer server(80); // for WebServer.h to use on member for server class
+
+
 void setup() {
   Serial.begin(115200);
   // Initialize the output variables as outputs
@@ -42,6 +56,12 @@ void setup() {
   // Set outputs to LOW
   digitalWrite(output23, LOW);
   digitalWrite(output22, LOW);
+
+  //Disable watchdog timers to prevent resets
+  // Might not need disabling, but play with in case
+  disableCore0WDT(); // for network & sys tasks
+  disableCore1WDT(); // for arduino sketch loops
+
 
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
@@ -57,11 +77,31 @@ void setup() {
   Serial.println("WiFi connected.");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+  
+  // on server http request execute function
+  server.on("/", SendWebsite);
+  server.on("/xml", SendXML);
+  server.on("/SET_BUTTONS_ON", setButtonsOn);
+  server.on("/SET_BUTTONS_OFF", setButtonsOff);
+  server.on("/SET_MOTORS", setMotors);
+
   server.begin();
 }
 
 //functions
-bool checkBoxToggleOff( int num ){
+void killMotor( int num = -1 ){ //kill all motors or kills a spesified motor.
+  if( num == -1 ){ //kills all motors
+    analogWrite(output23, 0);
+    analogWrite(output22, 0);
+    //Void updateMotor( &stepper_driver_1, 0 );
+    //Void updateMotor( &stepper_driver_2, 0 );
+    //Void updateMotor( &stepper_driver_3, 0 );
+    //Void updateMotor( &stepper_driver_4, 0 );
+    //Void updateMotor( &stepper_driver_5, 0 );
+    //Void updateMotor( &stepper_driver_6, 0 );
+    //Void updateMotor( &stepper_driver_7, 0 );
+    return;
+  } //kills specified motor
   switch (num){
     case 1:
       analogWrite(output23, 0);
@@ -72,23 +112,27 @@ bool checkBoxToggleOff( int num ){
       //Void updateMotor( &stepper_driver_2, 0 );
       break;
     case 3:
-      //Void updateMotor( &stepper_driver_2, 0 );
+      //Void updateMotor( &stepper_driver_3, 0 );
       break;
     case 4:
-      //Void updateMotor( &stepper_driver_2, 0 );
+      //Void updateMotor( &stepper_driver_4, 0 );
       break;
     case 5:
-      //Void updateMotor( &stepper_driver_2, 0 );
+      //Void updateMotor( &stepper_driver_5, 0 );
       break;
     case 6:
-      //Void updateMotor( &stepper_driver_2, 0 );
+      //Void updateMotor( &stepper_driver_6, 0 );
       break;
     case 7:
-      //Void updateMotor( &stepper_driver_2, 0 );
+      //Void updateMotor( &stepper_driver_7, 0 );
       break;
   }
+}
+
+bool checkBoxToggleOff( int num ){
+  killMotor(num);
   if( checkBoxState[num] == false )
-    return true;
+    return true; //was false
   else
     checkBoxState[num] = false;
     return false;
@@ -96,12 +140,87 @@ bool checkBoxToggleOff( int num ){
 
 bool checkBoxToggleOn( int num ){
   if( checkBoxState[num] == true )
-    return true;
+    return true; //was true
   else
     checkBoxState[num] = true;
     return false;
 }
 
+void setButtonsOn(){
+  //Serial.println("set buttons on");
+  for( int i = 1; i < 8; i++){
+    checkBoxToggleOn(i); //toggle all checkboxes on
+  }
+  server.send(200, "text/plain", ""); //Send web page
+}
+
+void setButtonsOff(){
+  //Serial.println("set buttons on");
+  for( int i = 1; i < 8; i++){
+    checkBoxToggleOff(i); //toggle all checkboxes on
+  }
+  server.send(200, "text/plain", ""); //Send web page
+}
+
+void setMotors(){
+  int MRVRaw = server.arg("MRVRaw").toInt();
+  for( int i = 0; i < 8; i++ ){
+    motorTurnVelocityRaw[i] = MRVRaw;
+    motorTurnVelocity255[i] = map( motorTurnVelocityRaw[0], -MRV, MRV, 0, 255 );
+  }
+  server.send(200, "text/plain", ""); //Send web page
+}
+
+// MAIN LOOP
+void loop(){
+  server.handleClient(); //handle client requests
+}
+
+// Functions
+void SendWebsite() {
+
+  Serial.println("sending web page");
+  // you may have to play with this value, big pages need more porcessing time, and hence
+  // a longer timeout that 200 ms
+  server.send(200, "text/html", PAGE_MAIN);
+}
+
+
+void SendXML() {
+
+  // Serial.println("sending xml");
+
+  strcpy(XML, "<?xml version = '1.0'?>\n<Data>\n");
+
+  strcat(XML, "</Data>\n");
+  // wanna see what the XML code looks like?
+  // actually print it to the serial monitor and use some text editor to get the size
+  // then pad and adjust char XML[2048]; above
+  // Serial.println(XML);
+
+  // you may have to play with this value, big pages need more porcessing time, and hence
+  // a longer timeout that 200 ms
+  server.send(200, "text/xml", XML);
+}
+
+
+void ProcessButton_0() {
+  if(checkBoxState[0] == false){
+    checkBoxToggleOn(0);
+    Serial.print("Button 0 "); Serial.println(checkBoxState[0]);
+    digitalWrite(output23, HIGH); //test
+    server.send(200, "text/plain", "1"); //Send web page
+  }
+  else{
+    checkBoxToggleOff(0);
+    Serial.print("Button 0 "); Serial.println(checkBoxState[0]);
+    digitalWrite(output23, LOW); //test
+    server.send(200, "text/plain", "0"); //Send web page
+  }
+}
+
+
+/*
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
 
@@ -126,82 +245,90 @@ void loop(){
           if (currentLine.length() == 0) {
             // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
             // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
+            client.println("HTTP/1.1 200 OK"); //I LOVE 200 OK :D
             client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
 
-            // Update checkbox#States (0 is motor all)
+            // Set all motor velocities to main velocity.
             if (header.indexOf("GET /setMotors") >= 0) {
               for( int i = 0; i < 8; i++ ){
                 motorTurnVelocityRaw[i] = motorTurnVelocityRaw[0];
                 motorTurnVelocity255[i] = map( motorTurnVelocityRaw[0], -MRV, MRV, 0, 255 );
               }
             }
+            
+            // Update checkbox#States (0 is motor all)
             if (header.indexOf("GET /setcheckbox1?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[1] = stateString.toInt(); //updates checkbox1 to 0 off or 1 on.
-              if( checkBoxState[1] == 0 ){
-                //Void updateMotor( &stepper_driver_0, 0 );
-                analogWrite(output23, 0);
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(1);
+              } else { //unchecked
+                checkBoxToggleOff(1);
               }
             }
             if (header.indexOf("GET /setcheckbox2?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[2] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkBoxState[2] == 0 ){
-                //Void updateMotor( &stepper_driver_1, 0 );
-                analogWrite(output22, 0);
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(2);
+              } else { //unchecked
+                checkBoxToggleOff(2);
               }
             }
             if (header.indexOf("GET /setcheckbox3?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[3] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkBoxState[3] == 0 ){
-                //Void updateMotor( &stepper_driver_2, 0 );
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(3);
+              } else { //unchecked
+                checkBoxToggleOff(3);
               }
             }
             if (header.indexOf("GET /setcheckbox4?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[4] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkBoxState[4] == 0 ){
-                //Void updateMotor( &stepper_driver_3, 0 );
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(4);
+              } else { //unchecked
+                checkBoxToggleOff(4);
               }
             }
             if (header.indexOf("GET /setcheckbox5?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[5] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkBoxState[5] == 0 ){
-                //Void updateMotor( &stepper_driver_4, 0 );
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(5);
+              } else { //unchecked
+                checkBoxToggleOff(5);
               }
             }
             if (header.indexOf("GET /setcheckbox6?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[6] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkBoxState[6] == 0 ){
-                //Void updateMotor( &stepper_driver_5, 0 );
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(6);
+              } else { //unchecked
+                checkBoxToggleOff(6);
               }
             }
             if (header.indexOf("GET /setcheckbox7?state=") >= 0) {
               String stateString = header.substring(header.indexOf("state=") + 6);
-              checkBoxState[7] = stateString.toInt(); //updates checkbox0 to 0 off or 1 on.
-              if( checkBoxState[7] == 0 ){
-                //Void updateMotor( &stepper_driver_6, 0 );
+              if( stateString.toInt() != 0 ){ //checked
+                checkBoxToggleOn(7);
+              } else { //unchecked
+                checkBoxToggleOff(7);
               }
             }
 
             // on and off checkbox toggle logic
             if (header.indexOf("GET /setCheckBoxesOn") >= 0) {
               for( int i = 1; i < 8; i++){
-                checkBoxState[i] = true;
+                checkBoxToggleOn(i); //toggle all checkboxes on
               }
             }
             if (header.indexOf("GET /setCheckBoxesOff") >= 0) {
               for( int i = 1; i < 8; i++){
-                checkBoxState[i] = false;
+                checkBoxToggleOff(i); //toggle all checkboxes off. This doesn't kill motors.
+                //killMotor(i); //if you want to kills all motors.
               }
             }
-
+            
             // Update motorTurnVelocity (0 is motor all)
             if (header.indexOf("GET /setMRV0?value=") >= 0) {
               motorTurnVelocityRaw[0] = header.substring(header.indexOf("value=") + 6).toInt();
@@ -301,28 +428,8 @@ void loop(){
               for( int i = 1; i < 8; i++){
                 checkBoxState[i] == false; //checkBoxState[0] never used
               }
-              analogWrite(output23, 0);
-              analogWrite(output22, 0);
-              //Void updateMotor( &stepper_driver_1, 0 );
-              //Void updateMotor( &stepper_driver_2, 0 );
-              //Void updateMotor( &stepper_driver_3, 0 );
-              //Void updateMotor( &stepper_driver_4, 0 );
-              //Void updateMotor( &stepper_driver_5, 0 );
-              //Void updateMotor( &stepper_driver_6, 0 );
-              //Void updateMotor( &stepper_driver_7, 0 );
+              killMotor(); //kills all motors
             }
-
-
-            /*
-            Note for later:
-              Create multiple textboxes for each speed and have a
-              checkbox that changes from control all and some.
-
-              MotorTurnVelocity255[7] = all motors
-              Implement checkbox for all or individual.
-
-              * check that html output right urls and use proper variables to match above.
-            */
             
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
@@ -452,3 +559,4 @@ void loop(){
     Serial.println("");
   }
 }
+*/
