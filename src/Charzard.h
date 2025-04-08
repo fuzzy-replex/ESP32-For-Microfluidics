@@ -1,7 +1,4 @@
-#ifndef CHARZARD_H
-#define CHARZARD_H
-
-const char PAGE_MAIN[] = R"rawliteral(
+const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en" class="js-focus-visible">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,7 +26,7 @@ const char PAGE_MAIN[] = R"rawliteral(
         font-size: 24px;
         line-height: 25px;
         padding: 10px 5px;
-        color: #000000;
+        color: #ffffff;
     }
     .wrapper {
         display: flex;
@@ -43,18 +40,18 @@ const char PAGE_MAIN[] = R"rawliteral(
     }
     </style>
 
-    <body style="Background-color: #F0F0F0F0" onload="process()">
-        <div>
+    <body style="Background-color: #383838" onload="process()">
+        <div
             class="title">Microflidics Pump Controller
         </div>
-        <p>Motor Rotational Velocity:</p>
-        <p style="font-size:10px;">Accepted Range {-90000, 90000}</p>
+        <p style="color: rgb(255, 255, 255);">Motor Rotational Velocity:</p>
+        <p style="color: rgb(255, 255, 255); font-size: 10px;">Accepted Range {-90000, 90000}</p>
     
-        <!-- Modify all GUI-->
+        <!-- Modify All MVR and All Checkboxes GUI-->
         <div class="wrapper">
             <div class="myDiv">
-                <p><button>Set All Motors</button></p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocityAll" onchange="updateAllMRV(this.value)"><p>
+                <p ><button onclick="setAllMotors()">Set All Motors</button></p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocityAll" onchange="updateAllMRVControl(this.value)"><p>
             </div>
             <div class="myDiv">
                 <p><button onclick="setCheckboxesOn()">Set Checkboxes On</button></p>
@@ -65,38 +62,38 @@ const char PAGE_MAIN[] = R"rawliteral(
         <!-- Motors 1 though 7 GUI-->
         <div class="wrapper">
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox1()"> Motor 1</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity1" onchange="updateMRV1()"></p>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox1" onchange="togglecheckbox1(this.checked)"> Motor 1</p><!-- -->
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity1" onchange="updateMRV1(this.value)"></p>
             </div>
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox2()"> Motor 2</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity2" onchange="updateMRV2()"></p>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox2" onchange="togglecheckbox2(this.checked)"> Motor 2</p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity2" onchange="updateMRV2(this.value)"></p>
             </div>
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox3()"> Motor 3</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity3" onchange="updateMRV3()"></p>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox3" onchange="togglecheckbox3(this.checked)"> Motor 3</p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity3" onchange="updateMRV3(this.value)"></p>
             </div>
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox4()"> Motor 4</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity4" onchange="updateMRV4()"></p>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox4" onchange="togglecheckbox4(this.checked)"> Motor 4</p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity4" onchange="updateMRV4(this.value)"></p>
             </div>
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox5()"> Motor 5</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity5" onchange="updateMRV5()"></p>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox5" onchange="togglecheckbox5(this.checked)"> Motor 5</p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity5" onchange="updateMRV5(this.value)"></p>
             </div>
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox6()"> Motor 6</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity6" onchange="updateMRV6()"></p>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox6" onchange="togglecheckbox6(this.checked)"> Motor 6</p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity6" onchange="updateMRV6(this.value)"></p>
             </div>
             <div class="myDiv">
-                <p><input type="checkbox" id="checkbox1" onchange="togglecheckbox7()"> Motor 7</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity7" onchange="updateMRV7()"></p>
-            </div>
+                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox7" onchange="togglecheckbox7(this.checked)"> Motor 7</p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity7" onchange="updateMRV7(this.value)"></p>
+            </div>                                                                                          <!-- -->
         </div>
 
         <!-- Run and Kill buttons-->
-        <p><a href="/run"><button class="button" style="color: MediumSeaGreen">Run</button></a></p>
-        <p><a href="/kill"><button class="button" style="color: Tomato;">Kill</button></a></p>
+        <p><button class="button" onclick="run()"; style="color: MediumSeaGreen">Run</button></p>
+        <p><button class="button" onclick="kill()"; style="color: Tomato;" >Kill</button></p>
     </body>
 
     <!-- JAVA SCRIPT SECTION -->
@@ -124,42 +121,30 @@ const char PAGE_MAIN[] = R"rawliteral(
             setTimeout("process()", 100);
         }
 
-        function response() {
-            var message;
-        }
+        // function to handle the response from the ESP
+    function response(){
+      var message;
+      var xmlResponse;
+      var xmldoc;
+      //var color = "#e8e8e8";
+     
+      // get the xml stream
+      xmlResponse=xmlHttp.responseXML;
+  
+      // pulls A0 from XML section of .ino file (EXAMPLE)
+      // xmldoc = xmlResponse.getElementsByTagName("B0"); //bits for A0
+      // message = xmldoc[0].firstChild.nodeValue;
+      
+      // if you want to use global color set above in <style> section
+      // other wise uncomment and let the value dictate the color
+      //document.getElementById("b0").style.backgroundColor=color;
+      //document.getElementById("b0").style.borderRadius="5px";
+     }
 
-        //functions for my server logic
-        function setCheckboxesOn(){
-            document.getElementById("checkbox1").checked = true;
-            document.getElementById("checkbox2").checked = true;
-            document.getElementById("checkbox3").checked = true;
-            document.getElementById("checkbox4").checked = true;
-            document.getElementById("checkbox5").checked = true;
-            document.getElementById("checkbox6").checked = true;
-            document.getElementById("checkbox7").checked = true;
-            
-            var xhttp = new XMLHttpRequest();
-            var message;
-            xhttp.open("PUT", "SET_BUTTONS_ON", false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function setCheckboxesOff(){
-            document.getElementById("checkbox1").checked = false;
-            document.getElementById("checkbox2").checked = false;
-            document.getElementById("checkbox3").checked = false;
-            document.getElementById("checkbox4").checked = false;
-            document.getElementById("checkbox5").checked = false;
-            document.getElementById("checkbox6").checked = false;
-            document.getElementById("checkbox7").checked = false;
-            
-            var xhttp = new XMLHttpRequest();
-            var message;
-            xhttp.open("PUT", "SET_BUTTONS_OFF", false);
-            xhttp.send();
-        }
-
-        function updateAllMRV( MRVRaw ){
+        //functions for my logic
+        function setAllMotors(){
+            //Modify variables in main script to reflect html changes
+            MRVRaw = document.getElementById("MotorRotationalVelocityAll").value;
             document.getElementById("MotorRotationalVelocity1").value = MRVRaw;
             document.getElementById("MotorRotationalVelocity2").value = MRVRaw;
             document.getElementById("MotorRotationalVelocity3").value = MRVRaw;
@@ -170,14 +155,201 @@ const char PAGE_MAIN[] = R"rawliteral(
 
             var xhttp = new XMLHttpRequest();
             var message;
-            xhttp.open("PUT", "SET_MOTORS?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.open("PUT", "SET_ALL_MOTORS", false); //this false means synchronous
             xhttp.send();
         }
 
+        function updateAllMRVControl( MRVRaw ){
+            //Modify html values using IDs
+            document.getElementById("MotorRotationalVelocityAll").value = MRVRaw;
+
+            //Modify variables in main script to reflect html changes
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "UPDATE_MOTOR_ALL_CONTROL?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+    
+        function setCheckboxesOn(){
+            //Modify html values using IDs
+            document.getElementById("checkbox1").checked = true;
+            document.getElementById("checkbox2").checked = true;
+            document.getElementById("checkbox3").checked = true;
+            document.getElementById("checkbox4").checked = true;
+            document.getElementById("checkbox5").checked = true;
+            document.getElementById("checkbox6").checked = true;
+            document.getElementById("checkbox7").checked = true;
+
+            //Modify variables in main script to reflect html changes
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_BUTTONS_ON", false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function setCheckboxesOff(){
+            //Modify html values using IDs
+            document.getElementById("checkbox1").checked = false;
+            document.getElementById("checkbox2").checked = false;
+            document.getElementById("checkbox3").checked = false;
+            document.getElementById("checkbox4").checked = false;
+            document.getElementById("checkbox5").checked = false;
+            document.getElementById("checkbox6").checked = false;
+            document.getElementById("checkbox7").checked = false;
+            
+            //Modify variables in main script to reflect html changes
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_BUTTONS_OFF", false);
+            xhttp.send();
+        }
+
+        //<toggle checkboxes>
+        function togglecheckbox1( checkState ){
+            document.getElementById("checkbox1").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX1?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function togglecheckbox2( checkState ){
+            document.getElementById("checkbox2").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX2?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function togglecheckbox3( checkState ){
+            document.getElementById("checkbox3").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX3?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function togglecheckbox4( checkState ){
+            document.getElementById("checkbox4").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX4?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function togglecheckbox5( checkState ){
+            document.getElementById("checkbox5").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX5?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function togglecheckbox6( checkState ){
+            document.getElementById("checkbox6").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX6?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function togglecheckbox7( checkState ){
+            document.getElementById("checkbox7").checked = checkState;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_CHECKBOX7?STATE="+checkState, false); //this false means synchronous
+            xhttp.send();
+        }
+        //</toggle checkboxes>
+        //<update MRV>
+            function updateMRV1( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity1").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV1?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function updateMRV2( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity2").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV2?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function updateMRV3( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity3").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV3?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function updateMRV4( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity4").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV4?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function updateMRV5( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity5").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV5?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function updateMRV6( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity6").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV6?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+
+        function updateMRV7( MRVRaw ){
+            document.getElementById("MotorRotationalVelocity7").value = MRVRaw;
+
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "SET_MRV7?VALUE="+MRVRaw, false); //this false means synchronous
+            xhttp.send();
+        }
+        //</update MRV>
+
+        function run(){
+            var xhttp = new XMLHttpRequest();
+            var message;
+            xhttp.open("PUT", "RUN", false); //this false means synchronous
+            xhttp.send();
+        }
+        function kill(){
+            var xhttp = new XMLHttpRequest();
+            var message;
+            setCheckboxesOff(); //turn off all checkboxes
+
+            xhttp.open("PUT", "KILL", false); //this false means synchronous
+            xhttp.send();
+        }
 
     </script>
 
 </html>
 )rawliteral";
-
-#endif
