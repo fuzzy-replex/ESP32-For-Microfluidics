@@ -1,4 +1,6 @@
 const char PAGE_MAIN[] PROGMEM = R"rawliteral(
+<!-- listening for PAGE_MAIN server connection -->
+<!-- html section -->
 <!DOCTYPE html>
 <html lang="en" class="js-focus-visible">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -40,7 +42,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
     }
     </style>
 
-    <body style="Background-color: #383838" onload="process()">
+    <body style="Background-color: #383838">
         <div
             class="title">Microflidics Pump Controller
         </div>
@@ -98,10 +100,10 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
     <!-- JAVA SCRIPT SECTION -->
     <script type="text/javascript">
-        //this is global
+        //outside fucntion declaration.
         var xmlHttp = createXmlHttpObject();
         
-        //functions to deal wth sending data between server and client
+        //functions to send xml string data between server and client
         function createXmlHttpObject() {
             if (window.XMLHttpRequest) {
                 xmlHttp = new XMLHttpRequest();
@@ -110,38 +112,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             }
             return xmlHttp;
         }
-  
-        // runs when body loads
-        function process() {
-            if (xmlHttp.readyState == 0 || xmlHttp.readyState == 4) {
-                xmlHttp.open("PUT", "xml", true);
-                xmlHttp.onreadystatechange = response;
-                xmlHttp.send(null);
-            }
-            setTimeout("process()", 100);
-        }
 
-        // function to handle the response from the ESP
-    function response(){
-      var message;
-      var xmlResponse;
-      var xmldoc;
-      //var color = "#e8e8e8";
-     
-      // get the xml stream
-      xmlResponse=xmlHttp.responseXML;
-  
-      // pulls A0 from XML section of .ino file (EXAMPLE)
-      // xmldoc = xmlResponse.getElementsByTagName("B0"); //bits for A0
-      // message = xmldoc[0].firstChild.nodeValue;
-      
-      // if you want to use global color set above in <style> section
-      // other wise uncomment and let the value dictate the color
-      //document.getElementById("b0").style.backgroundColor=color;
-      //document.getElementById("b0").style.borderRadius="5px";
-     }
-
-        //functions for my logic
+        //microfluidics webdisplay functions
         function setAllMotors(){
             //Modify variables in main script to reflect html changes
             MRVRaw = document.getElementById("MotorRotationalVelocityAll").value;
@@ -160,6 +132,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateAllMRVControl( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             //Modify html values using IDs
             document.getElementById("MotorRotationalVelocityAll").value = MRVRaw;
 
@@ -184,7 +157,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             //Modify variables in main script to reflect html changes
             var xhttp = new XMLHttpRequest();
             var message;
-            xhttp.open("PUT", "SET_BUTTONS_ON", false); //this false means synchronous
+            xhttp.open("PUT", "SET_CHECKBOXES_ON", false); //this false means synchronous
             xhttp.send();
         }
 
@@ -201,7 +174,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             //Modify variables in main script to reflect html changes
             var xhttp = new XMLHttpRequest();
             var message;
-            xhttp.open("PUT", "SET_BUTTONS_OFF", false);
+            xhttp.open("PUT", "SET_CHECKBOXES_OFF", false);
             xhttp.send();
         }
 
@@ -271,6 +244,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         //</toggle checkboxes>
         //<update MRV>
             function updateMRV1( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity1").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -280,6 +254,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateMRV2( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity2").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -289,6 +264,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateMRV3( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity3").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -298,6 +274,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateMRV4( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity4").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -307,6 +284,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateMRV5( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity5").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -316,6 +294,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateMRV6( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity6").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -325,6 +304,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function updateMRV7( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity7").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
@@ -343,10 +323,20 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         function kill(){
             var xhttp = new XMLHttpRequest();
             var message;
-            setCheckboxesOff(); //turn off all checkboxes
 
             xhttp.open("PUT", "KILL", false); //this false means synchronous
             xhttp.send();
+        }
+        
+        //function to restrict MVR values to the range of -90000 to 90000
+        function rangeRestrictionMVR( MVRRaw ){
+            if( MVRRaw < -90000 ){ //this value is hardcoded to reflect the range restrictions set in the main c script.
+                MVRRaw = -90000;
+            }
+            else if( MVRRaw > 90000 ){
+                MVRRaw = 90000;
+            }
+            return MVRRaw;
         }
 
     </script>
