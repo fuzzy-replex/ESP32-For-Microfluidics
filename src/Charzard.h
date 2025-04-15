@@ -94,8 +94,10 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         </div>
 
         <!-- Run and Kill buttons-->
-        <p><button class="button" onclick="run()"; style="color: MediumSeaGreen">Run</button></p>
-        <p><button class="button" onclick="kill()"; style="color: Tomato;" >Kill</button></p>
+        <div class="wrapper" style="margin-top: 10px;">
+            <button class="button" onclick="run()"; style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
+            <button class="button" onclick="kill()"; style="color: Tomato;" >Kill</button>
+        </div>
     </body>
 
     <!-- JAVA SCRIPT SECTION -->

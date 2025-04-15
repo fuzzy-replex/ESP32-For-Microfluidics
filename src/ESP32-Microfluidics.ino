@@ -119,52 +119,80 @@ void SendWebsite() {
   server.send(200, "text/html", PAGE_MAIN); //Sending web page connection
 }
 
-void setMotorNumRun( int num, int value, int run = false ){
+/*  num:      Motor numbers [0,7] where 0 is for set all motors
+    value:    The raw motor rotational velocity. Range [-MRV, MRV]
+    run:      Runs the motor specified.
+    kill:     false, updates the motorTurnVelocityRaw
+              true, keeps the previous motorTurnVelocityRaw and sets motor to 0
+              regardless of value.*/
+  
+void setMotorNumRunKill( int num, int value, int run = false, int kill = false ){
   switch (num)
   {
     case 0:
       motorTurnVelocityRaw[0] = value;
-      motorTurnVelocity255[0] = map( motorTurnVelocityRaw[0], -MRV, MRV, 0, 255 );
       break;
     case 1:
+      if(kill == true){
+        //void updateMotor( &stepper_driver_1, 0 );
+        analogWrite(output22, 0);
+        break;
+      }// else kill == false
       motorTurnVelocityRaw[1] = value;
-      motorTurnVelocity255[1] = map( motorTurnVelocityRaw[1], 0, MRV, 0, 255 );
+      motorTurnVelocity255[1] = map( motorTurnVelocityRaw[1], -MRV, MRV, 0, 255 );
       if(run == true){
         //void updateMotor( &stepper_driver_1, motorTurnVelocityRaw[1] );
         analogWrite(output22, motorTurnVelocity255[1]);
       }
       break;
     case 2:
+      if(kill == true){
+        //void updateMotor( &stepper_driver_2, 0 );
+        analogWrite(output23, 0);
+        break;
+      }// else kill == false
       motorTurnVelocityRaw[2] = value;
-      motorTurnVelocity255[2] = map( motorTurnVelocityRaw[2], 0, MRV, 0, 255 );
+      motorTurnVelocity255[2] = map( motorTurnVelocityRaw[2], -MRV, MRV, 0, 255 );
       if(run == true){
         //void updateMotor( &stepper_driver_2, motorTurnVelocityRaw[2] );
         analogWrite(output23, motorTurnVelocity255[2]);
       }
       break;
     case 3:
+      if(kill == true){
+        //void updateMotor( &stepper_driver_3, 0 );
+        break;
+      }// else kill == false
       motorTurnVelocityRaw[3] = value;
-      motorTurnVelocity255[3] = map( motorTurnVelocityRaw[3], -MRV, MRV, 0, 255 );
       //void updateMotor( &stepper_driver_3, motorTurnVelocityRaw[3] );
       break;
     case 4:
+      if(kill == true){
+        //void updateMotor( &stepper_driver_4, 0 );
+        break;
+      }// else kill == false
       motorTurnVelocityRaw[4] = value;
-      motorTurnVelocity255[4] = map( motorTurnVelocityRaw[4], -MRV, MRV, 0, 255 );
       //void updateMotor( &stepper_driver_4, motorTurnVelocityRaw[4] );
       break;
     case 5:
+      if(kill == true)
+        //void updateMotor( &stepper_driver_5, 0 );
+        break;
       motorTurnVelocityRaw[5] = value;
-      motorTurnVelocity255[5] = map( motorTurnVelocityRaw[5], -MRV, MRV, 0, 255 );
       //void updateMotor( &stepper_driver_5, motorTurnVelocityRaw[5] );
       break;
     case 6:
+      if(kill == true)
+        //void updateMotor( &stepper_driver_6, 0 );
+        break;
       motorTurnVelocityRaw[6] = value;
-      motorTurnVelocity255[6] = map( motorTurnVelocityRaw[6], -MRV, MRV, 0, 255 );
       //void updateMotor( &stepper_driver_6, motorTurnVelocityRaw[6] );
       break;
     case 7:
+      if(kill == true)
+        //void updateMotor( &stepper_driver_7, 0 );
+        break;
       motorTurnVelocityRaw[7] = value;
-      motorTurnVelocity255[7] = map( motorTurnVelocityRaw[7], -MRV, MRV, 0, 255 );
       //void updateMotor( &stepper_driver_7, motorTurnVelocityRaw[7] );
       break;
   }
@@ -172,7 +200,7 @@ void setMotorNumRun( int num, int value, int run = false ){
 
 //functions
 void checkBoxToggleOff( int num ){
-  setMotorNumRun(num, 0, true); //kill motor if it was on
+  setMotorNumRunKill(num, 0, true, true); //kill motor if it was on
   //toggle checkbox to off
   if( checkBoxState[num] == true )
     checkBoxState[num] = false;
@@ -193,9 +221,9 @@ void setCheckboxesOn(){
 }
 
 void setCheckboxesOff(){
-  //Serial.println("set buttons on");
+  //Serial.println("set checkboxes off");
   for( int i = 1; i < 8; i++){
-    setMotorNumRun(i, 0, true); //toggle all checkboxes on
+    setMotorNumRunKill(i, 0, true, true); //toggle all checkboxes off
     checkBoxToggleOff(i); //toggle all checkboxes off
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -203,107 +231,121 @@ void setCheckboxesOff(){
 
 void setMotors(){
   for( int i = 1; i < 8; i++ ){
-    setMotorNumRun( i, motorTurnVelocityRaw[0] ); //set all motors to the same value
+    setMotorNumRunKill( i, motorTurnVelocityRaw[0] ); //set all motors to the same value
   }
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 //checkbox invidual toggles
 void checkBox1Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true"); //return string of js bool
   checkBoxState[1] = checkState;
   if(checkState == false)
-    setMotorNumRun(1, 0, true); //kill motor if it was on
+    setMotorNumRunKill(1, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void checkBox2Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true");
   checkBoxState[2] = checkState;
   if(checkState == false)
-    setMotorNumRun(2, 0, true); //kill motor if it was on
+    setMotorNumRunKill(2, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void checkBox3Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true");
   checkBoxState[3] = checkState;
   if(checkState == false)
-    setMotorNumRun(3, 0, true); //kill motor if it was on
+    setMotorNumRunKill(3, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void checkBox4Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true");
   checkBoxState[4] = checkState;
   if(checkState == false)
-    setMotorNumRun(4, 0, true); //kill motor if it was on
+    setMotorNumRunKill(4, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void checkBox5Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true");
   checkBoxState[5] = checkState;
   if(checkState == false)
-    setMotorNumRun(5, 0, true); //kill motor if it was on
+    setMotorNumRunKill(5, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void checkBox6Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true");
   checkBoxState[6] = checkState;
   if(checkState == false)
-    setMotorNumRun(6, 0, true); //kill motor if it was on
+    setMotorNumRunKill(6, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void checkBox7Toggle(){
-  int checkState = server.arg("STATE").toInt();
+  bool checkState = (server.arg("STATE") == "true");
   checkBoxState[7] = checkState;
   if(checkState == false)
-    setMotorNumRun(7, 0, true); //kill motor if it was on
+    setMotorNumRunKill(7, 0, true, true); //kill motor if it was on
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
 //motors individual velocity setters
 void setMotor0(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(0, MRVRaw, false);
+  int MRVRaw = server.arg("VALUE").toInt(); //return string of js int
+  setMotorNumRunKill(0, MRVRaw);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor1(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(1, MRVRaw, false);
+  setMotorNumRunKill(1, MRVRaw);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor2(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(2, MRVRaw, false);
+  setMotorNumRunKill(2, MRVRaw, false);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor3(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(3, MRVRaw, false);
+  setMotorNumRunKill(3, MRVRaw, false);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor4(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(4, MRVRaw, false);
+  setMotorNumRunKill(4, MRVRaw, false);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor5(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(5, MRVRaw, false);
+  setMotorNumRunKill(5, MRVRaw, false);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor6(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(6, MRVRaw, false);
+  setMotorNumRunKill(6, MRVRaw, false);
   server.send(200, "text/plain", ""); //Send web page ok
 }
+
 void setMotor7(){
   int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRun(7, MRVRaw, false);
+  setMotorNumRunKill(7, MRVRaw, false);
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
 void runMotors(){
   for( int i = 1; i < 8; i++){
     if( checkBoxState[i] == true ){
-      setMotorNumRun(i, motorTurnVelocityRaw[i], true);
+      setMotorNumRunKill(i, motorTurnVelocityRaw[i], true);
     }
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -311,7 +353,8 @@ void runMotors(){
 
 void killMotors(){
   for( int i = 1; i < 8; i++){
-    setMotorNumRun(i, 0, true);
+    setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
+
   }
   server.send(200, "text/plain", ""); //Send web page
 }
