@@ -2,6 +2,7 @@
 #include <WebServer.h>
 #include <string>
 #include "Charzard.h"
+#include "TinyUPnP.h"
 
 // Replace with your network credentials
 const char* ssid     = "YourInAComaWakeUp";
@@ -18,22 +19,12 @@ String output22State = "off";
 const int output22 = 22;
 const int output23 = 23;
 
-// Current time
-unsigned long currentTime = millis();
-// Previous time
-unsigned long previousTime = 0; 
-// Define timeout time in milliseconds (example: 2000ms = 2s)
-const long timeoutTime = 2000;
 
 int motorTurnVelocityRaw[8] = {0};
 int motorTurnVelocity255[8] = {0};
 bool checkBoxState[8] = {false}; //checkBoxState[0] never used
 //}
 
-//Fancy XML wizardry
-
-char XML[200]; //XML buffer
-char buf[32]; //buffer for char operations
 
 IPAddress PageIP(192, 168, 1, 1); //IP address of the page
 IPAddress gateway(192, 168, 1, 1); //IP address of the page

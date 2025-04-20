@@ -41,11 +41,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         border: 4px outset lightblue;
     }
     </style>
+    <div class="header">
+        <h1 style="color: rgb(255, 255, 255);">Microfluidics Pump Controller</h1>
+    </div>
 
     <body style="Background-color: #383838">
-        <div
-            class="title">Microflidics Pump Controller
-        </div>
         <p style="color: rgb(255, 255, 255);">Motor Rotational Velocity:</p>
         <p style="color: rgb(255, 255, 255); font-size: 10px;">Accepted Range {-90000, 90000}</p>
     
@@ -53,7 +53,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         <div class="wrapper">
             <div class="myDiv">
                 <p ><button onclick="setAllMotors()">Set All Motors</button></p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocityAll" onchange="updateAllMRVControl(this.value)"><p>
+                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocityAll" onchange="updateAllMRVControl(this.value)"></p>
             </div>
             <div class="myDiv">
                 <p><button onclick="setCheckboxesOn()">Set Checkboxes On</button></p>
@@ -95,8 +95,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         <!-- Run and Kill buttons-->
         <div class="wrapper" style="margin-top: 10px;">
-            <button class="button" onclick="run()"; style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
-            <button class="button" onclick="kill()"; style="color: Tomato;" >Kill</button>
+            <button class="button" onclick="run()" style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
+            <button class="button" onclick="kill()" style="color: Tomato;" >Kill</button>
         </div>
     </body>
 
@@ -342,6 +342,5 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
     </script>
-
 </html>
 )rawliteral";
