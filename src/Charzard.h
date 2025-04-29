@@ -1,5 +1,7 @@
 const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 <!-- listening for PAGE_MAIN server connection -->
+<!-- PROGMEM specifies that PAGE_MAIN is stored in flash memory to conserve space in RAM. -->
+<!-- R"rawliteral means store the array as written for formatting embedded HTML -->
 <!-- html section -->
 <!DOCTYPE html>
 <html lang="en" class="js-focus-visible">
@@ -102,19 +104,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
     <!-- JAVA SCRIPT SECTION -->
     <script type="text/javascript">
-        //outside fucntion declaration.
-        var xmlHttp = createXmlHttpObject();
         
-        //functions to send xml string data between server and client
-        function createXmlHttpObject() {
-            if (window.XMLHttpRequest) {
-                xmlHttp = new XMLHttpRequest();
-            } else {
-                xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
-            }
-            return xmlHttp;
-        }
-
         //microfluidics webdisplay functions
         function setAllMotors(){
             //Modify variables in main script to reflect html changes
@@ -127,8 +117,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity6").value = MRVRaw;
             document.getElementById("MotorRotationalVelocity7").value = MRVRaw;
 
+            //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_ALL_MOTORS", false); //this false means synchronous
             xhttp.send();
         }
@@ -138,9 +128,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             //Modify html values using IDs
             document.getElementById("MotorRotationalVelocityAll").value = MRVRaw;
 
-            //Modify variables in main script to reflect html changes
+            //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "UPDATE_MOTOR_ALL_CONTROL?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -156,9 +145,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox6").checked = true;
             document.getElementById("checkbox7").checked = true;
 
-            //Modify variables in main script to reflect html changes
+            //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOXES_ON", false); //this false means synchronous
             xhttp.send();
         }
@@ -173,9 +161,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox6").checked = false;
             document.getElementById("checkbox7").checked = false;
             
-            //Modify variables in main script to reflect html changes
+            //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOXES_OFF", false);
             xhttp.send();
         }
@@ -185,7 +172,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox1").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX1?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
@@ -194,7 +180,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox2").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX2?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
@@ -203,7 +188,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox3").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX3?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
@@ -212,7 +196,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox4").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX4?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
@@ -221,7 +204,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox5").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX5?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
@@ -230,7 +212,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox6").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX6?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
@@ -239,18 +220,16 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("checkbox7").checked = checkState;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_CHECKBOX7?STATE="+checkState, false); //this false means synchronous
             xhttp.send();
         }
         //</toggle checkboxes>
         //<update MRV>
-            function updateMRV1( MRVRaw ){
+        function updateMRV1( MRVRaw ){
             MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity1").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV1?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -260,7 +239,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity2").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV2?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -270,7 +248,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity3").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV3?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -280,7 +257,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity4").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV4?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -290,7 +266,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity5").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV5?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -300,7 +275,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity6").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV6?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -310,7 +284,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("MotorRotationalVelocity7").value = MRVRaw;
 
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "SET_MRV7?VALUE="+MRVRaw, false); //this false means synchronous
             xhttp.send();
         }
@@ -318,19 +291,19 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         function run(){
             var xhttp = new XMLHttpRequest();
-            var message;
             xhttp.open("PUT", "RUN", false); //this false means synchronous
             xhttp.send();
         }
         function kill(){
             var xhttp = new XMLHttpRequest();
-            var message;
 
             xhttp.open("PUT", "KILL", false); //this false means synchronous
             xhttp.send();
         }
         
         //function to restrict MVR values to the range of -90000 to 90000
+        /*currently hardcoded so if you have to modify this value
+          to reflect the global range specified in the main file. */
         function rangeRestrictionMVR( MVRRaw ){
             if( MVRRaw < -90000 ){ //this value is hardcoded to reflect the range restrictions set in the main c script.
                 MVRRaw = -90000;

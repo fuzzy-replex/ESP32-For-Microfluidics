@@ -1,77 +1,59 @@
-#include <WiFi.h>
-#include <WebServer.h>
-#include <string>
-#include "Charzard.h"
-#include "TinyUPnP.h"
+#include <WiFi.h> // contains WiFi class which creates a WiFi object. Simplifies the connection to a WiFi network.
+#include <WebServer.h> // contains WebServer class which creates a server object. Simplifies the connection to a web server.
+#include "Charzard.h" // contains the HTML code and JS logic of the web server.
 
-// Replace with your network credentials
+// The ssid and password are the typical wifi or network connection credentials
 const char* ssid     = "YourInAComaWakeUp";
 const char* password = "WakeUpNathan";
 
-// Variable to store the HTTP request
-String header;
-
-// Auxiliar variables to store the current output state
-String output23State = "off";
-String output22State = "off";
-
-// Assign output variables to GPIO pins
+// GPIO pins vairables
 const int output22 = 22;
 const int output23 = 23;
 
-
-int motorTurnVelocityRaw[8] = {0};
-int motorTurnVelocity255[8] = {0};
+// Motor state variables
+const int MRV = 90000; //max rotational velocity
+int motorTurnVelocityRaw[8] = {0}; //Raw is value from -MRV to MRV
+int motorTurnVelocity255[8] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
 bool checkBoxState[8] = {false}; //checkBoxState[0] never used
-//}
 
-
-IPAddress PageIP(192, 168, 1, 1); //IP address of the page
-IPAddress gateway(192, 168, 1, 1); //IP address of the page
-IPAddress subnet(255, 255, 255, 1); //IP address of the page
-IPAddress ip; //IP address of the page
-
-// Set web server port number to 80
-// WiFiServer server(80); for WiFi.h OLD
-WebServer server(80); // for WebServer.h to use on member for server class
-
-int MRV = 90000; //max rotational velocity
+// Set web server object with port number
+WebServer server(80);
 
 void setup() {
-  Serial.begin(115200);
-  // Initialize the output variables as outputs
+  Serial.begin(115200); // set serial baud rate to 115200 
+  // Initialize and set GPIO
   pinMode(output23, OUTPUT);
   pinMode(output22, OUTPUT);
-  // Set outputs to LOW
   digitalWrite(output23, LOW);
   digitalWrite(output22, LOW);
 
-  //Disable watchdog timers to prevent resets
-  // Might not need disabling, but play with in case
-  disableCore0WDT(); // for network & sys tasks
-  disableCore1WDT(); // for arduino sketch loops
-
-
-  // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
+  // Connect to Wi-Fi network with SSID with password
   WiFi.begin(ssid, password);
+  
+  //wait till connected
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  // Print local IP address and start web server
+
+  // Print local IP address and start web server. (put ip into browser to view server)
   Serial.println("");
   Serial.println("WiFi connected.");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   
-  // on server http request execute function
-  server.on("/", SendWebsite);
+  /* on server http request execute function
+     server.handleClient() compares request to
+     first parameter and then executes the function
+     in the second parameter. */
+  // Send webpage
+  server.on("/", SendWebsite); //fowardslash is sent by the website on web ip load.
   //Modify ALL motors checkbox requests
   server.on("/SET_ALL_MOTORS", setMotors); //checkbox 0 is all motors
-  server.on("/UPDATE_MOTOR_ALL_CONTROL", setMotor0); //used in set_all_motors to set all motors to this value
+  server.on("/UPDATE_MOTOR_ALL_CONTROL", setMotor0); //used to set all motors to a specific value
   server.on("/SET_CHECKBOXES_ON", setCheckboxesOn);
   server.on("/SET_CHECKBOXES_OFF", setCheckboxesOff);
   //Modify motors checkboxs individually requests
@@ -93,7 +75,7 @@ void setup() {
   //Run motors requests
   server.on("/RUN", runMotors);
   server.on("/KILL", killMotors);
-  
+  //Start Server
   server.begin();
 }
 
@@ -107,16 +89,21 @@ void loop(){
 // send server inital connection by server.on("/", SendWebsite)
 void SendWebsite() {
   Serial.println("sending web page");
-  server.send(200, "text/html", PAGE_MAIN); //Sending web page connection
+  server.send(200, "text/html", PAGE_MAIN); //Send the html gui to the client
 }
 
-/*  num:      Motor numbers [0,7] where 0 is for set all motors
+/*  This function is used to set, run, or kill a motor.
+    To set a motor use setMotorNumRunKill( num, value, false, false )
+    To run a motor use setMotorNumRunKill( num, value, true, false )
+    To kill a motor use:
+      setMotorNumRunKill( num, value, false, true )
+      setMotorNumRunKill( num, value, true, true )
+    num:      Motor numbers [0,7] where 0 is for set all motors
     value:    The raw motor rotational velocity. Range [-MRV, MRV]
     run:      Runs the motor specified.
     kill:     false, updates the motorTurnVelocityRaw
               true, keeps the previous motorTurnVelocityRaw and sets motor to 0
               regardless of value.*/
-  
 void setMotorNumRunKill( int num, int value, int run = false, int kill = false ){
   switch (num)
   {
@@ -333,6 +320,7 @@ void setMotor7(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
+//run motors that are checked
 void runMotors(){
   for( int i = 1; i < 8; i++){
     if( checkBoxState[i] == true ){
@@ -342,6 +330,7 @@ void runMotors(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
+// kills all motors.
 void killMotors(){
   for( int i = 1; i < 8; i++){
     setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
