@@ -1,6 +1,7 @@
 # ESP32 for SDSM&T biomedical engeneering microfluidic project.
-This git is for creating the GUI for the sdsmt BioMed Microfluidics Pump controller. The GUI is designed to run 7 motors at the same time with varing rotational velocities.
-![FrontGuiStatic](readMeAssets/FrontGuiStatic.png) ![FrontGuiStatic](readMeAssets/FrontGui.png)
+This git is for creating the GUI for the sdsmt BioMed Microfluidics Pump controller. The GUI is designed to run 7 motors at the same time with varing rotational velocities. Although this will eventually be used for motors, for debugging purposes I've opted to use two leds to simulate the UART lines to the stepper motors.
+![FrontGuiStatic](readMeAssets/FrontGuiStatic.png) 
+![FrontGuiStatic](readMeAssets/FrontGui.gif)
 The bulk of the c++, html, and js code for this project is within the src folder.
 
 ## Environment
@@ -42,10 +43,12 @@ Here's how it works: xhttp.open("PUT", "SET_CHECKBOX1?STATE="+checkState, false)
     checkState is appended and is either "true" or "false" depending if the checkbox is on or off.
 
 The client handler catches the PUT request and compares the path to the first parameters.
-    xhttp PUT request contains "SET_CHECKBOX1".
+xhttp PUT request contains "SET_CHECKBOX1".
 ![set checkbox1 Setup](readMeAssets/setCheckbox1Setup.png)
+
 The .on method then calls checkBox1Toggle()
 ![checkBox1ToggleDeclaration](readMeAssets/checkBox1ToggleDeclaration.png)
+
 I use the server.arg method to pull the STATE of the checkbox and store it in my main c++ file. I do this to keep track of my html changes inorder to prepare them for a function that my lab partner wrote.
 Note: STATE is a variable defined in the put request and has to match.
 
