@@ -24,7 +24,7 @@ The client handler compares the client root path with the first parameters withi
 
 The .on method will execute the function in the second parameter if the first parameter matches the request. (in this case '/')
 Here is the function that is called:
-![setUpWebsite](setUpWebsite.png)
+![setUpWebsite](readMeAssets/setUpWebsite.png)
 This code will send the current html string to the client. *In other words, display the GUI.
 
 Within the HTML code, The buttons or numboxes have an onchange or onclick attribute associated with it.
@@ -45,7 +45,7 @@ The client handler catches the PUT request and compares the path to the first pa
     xhttp PUT request contains "SET_CHECKBOX1".
 ![set checkbox1 Setup](readMeAssets/setCheckbox1Setup.png)
 The .on method then calls checkBox1Toggle()
-![checkBox1ToggleDeclaration](checkBox1ToggleDeclaration.png)
+![checkBox1ToggleDeclaration](readMeAssets/checkBox1ToggleDeclaration.png)
 I use the server.arg method to pull the STATE of the checkbox and store it in my main c++ file. I do this to keep track of my html changes inorder to prepare them for a function that my lab partner wrote.
 Note: STATE is a variable defined in the put request and has to match.
 
