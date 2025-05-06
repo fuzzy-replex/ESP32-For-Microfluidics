@@ -5,100 +5,157 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 <!-- html section -->
 <!DOCTYPE html>
 <html lang="en" class="js-focus-visible">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="data:,">
-    <style>
-    html {
-        font-family: "Verdana", "Arial", sans-serif;
-        display: inline-block;
-        margin: 0px auto;
-        text-align: center;
-    }
-    .button {
-        background-color: #195B6A;
-        border: none;
-        color: white;
-        padding: 16px;
-        text-decoration: none;
-        font-size: 30px;
-        margin: 2px;
-        cursor: pointer;
-    }
-    .title {
-        font-family: "Verdana", "Arial", sans-serif;
-        font-weight: bold;
-        font-size: 24px;
-        line-height: 25px;
-        padding: 10px 5px;
-        color: #ffffff;
-    }
-    .wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        margin: 0 auto;
-    }
-    .myDiv {
-        border: 4px outset lightblue;
-    }
-    </style>
-    <div class="header">
-        <h1 style="color: rgb(255, 255, 255);">Microfluidics Pump Controller</h1>
-    </div>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="data:,">
+        <style>
+        html {
+            font-family: "Verdana", "Arial", sans-serif;
+            display: inline-block;
+            margin: 0px auto;
+            text-align: center;
+        }
+        .button {
+            background-color: #195B6A;
+            border: none;
+            color: white;
+            padding: 16px;
+            text-decoration: none;
+            font-size: 30px;
+            margin: 2px;
+            cursor: pointer;
+        }
+        .title {
+            font-family: "Verdana", "Arial", sans-serif;
+            font-weight: bold;
+            font-size: 24px;
+            line-height: 25px;
+            padding: 10px 5px;
+            color: #ffffff;
+        }
+        .wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+        }
+        .myDiv {
+            border: 4px outset lightblue;
+        }
+        .topnav {
+            display: flex;
+            flex-wrap: nowrap; /* Don't stack */
+            background-color: #333;
+            padding: 10px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        .nav-links {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 10px;
+            flex-shrink: 0; /* keep links from shrinking */
+        }
+        .topnav a {
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+            white-space: nowrap; /* Prevents link text from breaking */
+        }
+        .topnav a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+        .topnavTitle {
+            font-weight: bold;
+            color: white;
+            flex: 1 1 auto;
+            min-width: 10ch;       /* Don't shrink smaller than 10 characters wide */
+            max-width: 100%;       /* Let it grow as needed */
+            word-break: break-word;
+            text-align: left;
+            margin: auto;
+        }
+        </style>
+    </head>
+    
 
     <body style="Background-color: #383838">
-        <p style="color: rgb(255, 255, 255);">Motor Rotational Velocity:</p>
-        <p style="color: rgb(255, 255, 255); font-size: 10px;">Accepted Range {-90000, 90000}</p>
-    
-        <!-- Modify All MVR and All Checkboxes GUI-->
-        <div class="wrapper">
-            <div class="myDiv">
-                <p ><button onclick="setAllMotors()">Set All Motors</button></p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocityAll" onchange="updateAllMRVControl(this.value)"></p>
+
+        <div class="topnav">
+            <span class="topnavTitle">Microfluidics Pump Controller</span>
+            <div class="nav-links">
+                <a href="javascript:void(0)" onclick="showView('Manual Mode')">Manual Mode</a>
+                <a href="javascript:void(0)" onclick="showView('Scheduling Mode')">Scheduling Mode</a>
+                <!-- javascript:void(0) does nothing. This allows onclick to call a js function without redirection -->
             </div>
-            <div class="myDiv">
-                <p><button onclick="setCheckboxesOn()">Set Checkboxes On</button></p>
-                <p><button onclick="setCheckboxesOff()">Set Checkboxes Off</button></p>
+        </div>
+        
+<!-- Manual Mode Section! -->
+        <div id="manualMode" style="display: block;">
+            <h2 class="title">Manual Mode</h2>
+            <p style="color: rgb(255, 255, 255);">Motor Rotational Velocity:</p>
+            <p style="color: rgb(255, 255, 255); font-size: 10px;">Accepted Range {-90000, 90000}</p>
+        
+            <!-- Modify All MVR and All Checkboxes GUI-->
+            <div class="wrapper">
+                <div class="myDiv">
+                    <p ><button onclick="setAllMotors()">Set All Motors</button></p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocityAll" onchange="updateAllMRVControl(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p><button onclick="setCheckboxesOn()">Set Checkboxes On</button></p>
+                    <p><button onclick="setCheckboxesOff()">Set Checkboxes Off</button></p>
+                </div>
+            </div>
+
+            <!-- Motors 1 though 7 GUI-->
+            <div class="wrapper">
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox1" onchange="togglecheckbox1(this.checked)"> Motor 1</p><!-- -->
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity1" onchange="updateMRV1(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox2" onchange="togglecheckbox2(this.checked)"> Motor 2</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity2" onchange="updateMRV2(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox3" onchange="togglecheckbox3(this.checked)"> Motor 3</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity3" onchange="updateMRV3(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox4" onchange="togglecheckbox4(this.checked)"> Motor 4</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity4" onchange="updateMRV4(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox5" onchange="togglecheckbox5(this.checked)"> Motor 5</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity5" onchange="updateMRV5(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox6" onchange="togglecheckbox6(this.checked)"> Motor 6</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity6" onchange="updateMRV6(this.value)"></p>
+                </div>
+                <div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox7" onchange="togglecheckbox7(this.checked)"> Motor 7</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity7" onchange="updateMRV7(this.value)"></p>
+                </div>                                                                                          <!-- -->
+            </div>
+
+            <!-- Run and Kill buttons-->
+            <div class="wrapper" style="margin-top: 10px;">
+                <button class="button" onclick="run()" style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
+                <button class="button" onclick="kill()" style="color: Tomato;" >Kill</button>
             </div>
         </div>
 
-        <!-- Motors 1 though 7 GUI-->
-        <div class="wrapper">
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox1" onchange="togglecheckbox1(this.checked)"> Motor 1</p><!-- -->
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity1" onchange="updateMRV1(this.value)"></p>
-            </div>
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox2" onchange="togglecheckbox2(this.checked)"> Motor 2</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity2" onchange="updateMRV2(this.value)"></p>
-            </div>
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox3" onchange="togglecheckbox3(this.checked)"> Motor 3</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity3" onchange="updateMRV3(this.value)"></p>
-            </div>
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox4" onchange="togglecheckbox4(this.checked)"> Motor 4</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity4" onchange="updateMRV4(this.value)"></p>
-            </div>
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox5" onchange="togglecheckbox5(this.checked)"> Motor 5</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity5" onchange="updateMRV5(this.value)"></p>
-            </div>
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox6" onchange="togglecheckbox6(this.checked)"> Motor 6</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity6" onchange="updateMRV6(this.value)"></p>
-            </div>
-            <div class="myDiv">
-                <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox7" onchange="togglecheckbox7(this.checked)"> Motor 7</p>
-                <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity7" onchange="updateMRV7(this.value)"></p>
-            </div>                                                                                          <!-- -->
-        </div>
 
-        <!-- Run and Kill buttons-->
-        <div class="wrapper" style="margin-top: 10px;">
-            <button class="button" onclick="run()" style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
-            <button class="button" onclick="kill()" style="color: Tomato;" >Kill</button>
+<!-- Schedule Mode Section! -->
+        <div id="schedulingMode" style="display: none;">
+            <h2 class="title">Scheduling Mode</h2>
+            <p style="color: rgb(255, 255, 255);">This mode is not implemented yet.</p>
         </div>
     </body>
 
@@ -314,6 +371,18 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             return MVRRaw;
         }
 
+        function showView(view) {
+            var mainView = document.getElementById("manualMode");
+            var secondaryView = document.getElementById("schedulingMode");
+            
+            if (view === "Manual Mode") {
+                mainView.style.display = "block";
+                secondaryView.style.display = "none";
+            } else if (view === "Scheduling Mode") {
+                mainView.style.display = "none";
+                secondaryView.style.display = "block";
+            }
+        }
     </script>
 </html>
 )rawliteral";
