@@ -46,17 +46,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         .topnav {
             display: flex;
             flex-wrap: nowrap; /* Don't stack */
-            background-color: #333;
+            background-color: #222; /*background of navbar*/
             padding: 10px;
             align-items: center;
             justify-content: space-between;
             gap: 15px;
-        }
-        .nav-links {
-            display: flex;
-            flex-wrap: nowrap;
-            gap: 10px;
-            flex-shrink: 0; /* keep links from shrinking */
         }
         .topnav a {
             color: #f2f2f2;
@@ -68,6 +62,12 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         .topnav a:hover {
             background-color: #ddd;
             color: black;
+        }
+        .nav-links {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 10px;
+            flex-shrink: 0; /* keep links from shrinking */
         }
         .topnavTitle {
             font-weight: bold;
@@ -82,11 +82,14 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         </style>
     </head>
     
-
+            <!-- Background color of Body!!! -->
     <body style="Background-color: #383838">
-
+        
+<!-- NavBar Section! -->
         <div class="topnav">
-            <span class="topnavTitle">Microfluidics Pump Controller</span>
+            <span 
+                class="topnavTitle">Microfluidics Pump Controller
+            </span>
             <div class="nav-links">
                 <a href="javascript:void(0)" onclick="showView('Manual Mode')">Manual Mode</a>
                 <a href="javascript:void(0)" onclick="showView('Scheduling Mode')">Scheduling Mode</a>
@@ -156,6 +159,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         <div id="schedulingMode" style="display: none;">
             <h2 class="title">Scheduling Mode</h2>
             <p style="color: rgb(255, 255, 255);">This mode is not implemented yet.</p>
+        
+            
         </div>
     </body>
 

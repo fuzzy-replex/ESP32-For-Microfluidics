@@ -1,5 +1,6 @@
 # ESP32 for SDSM&T biomedical engeneering microfluidic project.
-This git is for creating the GUI for the sdsmt BioMed Microfluidics Pump controller. The GUI is designed to run 7 motors at the same time with varing rotational velocities. Although this will eventually be used for motors, for debugging purposes I've opted to use two leds to simulate the UART lines to the stepper motors.
+This git is for creating the GUI for the sdsmt BioMed Microfluidics Pump controller. The combined implemnetation of GUI and 7 motor board are still being written here: https://gitlab.com/ericjohnson0987/bme-microfluidics-esp32. 
+The GUI is designed to run 7 motors at the same time with varing rotational velocities. Although this will eventually be used for motors, for debugging purposes I've opted to use two leds to simulate the UART lines to the stepper motors.
 ![FrontGuiStatic](readMeAssets/FrontGuiStatic.png) 
 ![FrontGuiStatic](readMeAssets/FrontGui.gif)
 The bulk of the c++, html, and js code for this project is within the src folder.
