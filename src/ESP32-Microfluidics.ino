@@ -413,7 +413,7 @@ void Motor2Task(void *pvParameters) {
     ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
                                                 portMAX_DELAY = wait indefinitely until binary semaphore given.*/
     setMotorNumRunKill(1, 0, true, false); //on
-    delay(3600000);
+    delay(3600000); //3600000ms = 1 hour (tested and seems like it works)
     setMotorNumRunKill(1, 0, false, true);
     delay(500);
     setMotorNumRunKill(1, 0, true, false);//on 1

@@ -79,9 +79,25 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             text-align: left;
             margin: auto;
         }
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 15px;
+        }
+        td, th {
+            border: 1px solid #dddddd;
+            text-align: center;
+            padding: 8px;
+        }
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+        .velocity-input {
+            width: 50px;
+        }
         </style>
     </head>
-    
             <!-- Background color of Body!!! -->
     <body style="Background-color: #383838">
         
@@ -158,10 +174,78 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 <!-- Schedule Mode Section! -->
         <div id="schedulingMode" style="display: none;">
             <h2 class="title">Scheduling Mode</h2>
-            <p style="color: rgb(255, 255, 255);">This mode is not implemented yet.</p>
-            <div>
-                <button class="button" onclick="scheduleMotor1()" style="color: orange">Test Timer</button>
+            <!-- Changing Time Buttons -->
+            <div style="text-align: center">
+                <button onclick="showTimeView('AbsoluteTime')">AbsoluteTime</button>
+                <button onclick="showTimeView('ClockTime')">24ClockTime</button>
+                <button onclick="showTimeView('DateTime')">DateTime</button>
             </div>
+            <!-- Table -->
+            <table>
+                <tr>
+                  <th>Motors</th>
+              
+                  <!-- Dynamic header swapping -->
+                  <th>
+                    <div id="timeHeader-Absolute" style="display: block;">AbsoluteTime</div>
+                    <div id="timeHeader-Clock" style="display: none;">24ClockTime</div>
+                    <div id="timeHeader-DateTime" style="display: none;">DateTime</div>
+                  </th>
+              
+                  <th>Velocity (ω)</th>
+                </tr>
+              
+                <!-- Motor 1 -->
+                <tr>
+                  <td>Motor 1</td>
+                  <td>
+                    <div class="timeModes">
+                      <div class="AbsoluteTime" style="display: block;">
+                        <div style="display: inline-flex; align-items: center;">
+                          <input type="number" min="0" placeholder="HH" style="width: 40px; text-align: center;">
+                          <span>:</span>
+                          <input type="number" min="0" max="59" placeholder="MM" style="width: 40px; text-align: center;">
+                          <span>:</span>
+                          <input type="number" min="0" max="59" placeholder="SS" style="width: 40px; text-align: center;">
+                        </div>
+                      </div>
+                      <div class="ClockTime" style="display: none;">
+                        <input type="time" step="1" style="width: 116px;">
+                      </div>
+                      <div class="DateTime" style="display: none;">
+                        <input type="datetime-local" style="width: 170px;">
+                      </div>
+                    </div>
+                  </td>
+                  <td><input type="number" class="velocity-input" value="0"></td>
+                </tr>
+              
+                <!-- Motor 2 -->
+                <tr>
+                  <td>Motor 2</td>
+                  <td>
+                    <div class="timeModes">
+                      <div class="AbsoluteTime" style="display: block;">
+                        <div style="display: inline-flex; align-items: center;">
+                          <input type="number" min="0" placeholder="HH" style="width: 40px; text-align: center;">
+                          <span>:</span>
+                          <input type="number" min="0" max="59" placeholder="MM" style="width: 40px; text-align: center;">
+                          <span>:</span>
+                          <input type="number" min="0" max="59" placeholder="SS" style="width: 40px; text-align: center;">
+                        </div>
+                      </div>
+                      <div class="ClockTime" style="display: none;">
+                        <input type="time" step="1" style="width: 116px;">
+                      </div>
+                      <div class="DateTime" style="display: none;">
+                        <input type="datetime-local" style="width: 170px;">
+                      </div>
+                    </div>
+                  </td>
+                  <td><input type="number" class="velocity-input" value="0"></td>
+                </tr>
+              
+              </table>
         </div>
     </body>
 
@@ -389,8 +473,24 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 secondaryView.style.display = "block";
             }
         }
-        
+
         // Scheduling mode functions:
+        function showTimeView(view) {
+            // Header toggle
+            document.getElementById("timeHeader-Absolute").style.display = (view === "AbsoluteTime") ? "block" : "none";
+            document.getElementById("timeHeader-Clock").style.display = (view === "ClockTime") ? "block" : "none";
+            document.getElementById("timeHeader-DateTime").style.display = (view === "DateTime") ? "block" : "none";
+
+            // Time cell toggle for each motor
+            const modes = ["AbsoluteTime", "ClockTime", "DateTime"];
+            modes.forEach(mode => {
+            const elements = document.getElementsByClassName(mode);
+            for (let el of elements) {
+                el.style.display = (view === mode) ? "block" : "none";
+            }
+            });
+        }
+
         function scheduleMotor1(){
             var xhttp = new XMLHttpRequest();
             xhttp.open("PUT", "SCHEDULE_MOTOR_1", false); //this false means synchronous
