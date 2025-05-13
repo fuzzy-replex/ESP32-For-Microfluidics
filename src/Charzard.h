@@ -159,8 +159,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         <div id="schedulingMode" style="display: none;">
             <h2 class="title">Scheduling Mode</h2>
             <p style="color: rgb(255, 255, 255);">This mode is not implemented yet.</p>
-        
-            
+            <div>
+                <button class="button" onclick="scheduleMotor1()" style="color: orange">Test Timer</button>
+            </div>
         </div>
     </body>
 
@@ -387,6 +388,18 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 mainView.style.display = "none";
                 secondaryView.style.display = "block";
             }
+        }
+        
+        // Scheduling mode functions:
+        function scheduleMotor1(){
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("PUT", "SCHEDULE_MOTOR_1", false); //this false means synchronous
+            xhttp.send();
+        }
+        function scheduleMotor2(){
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("PUT", "SCHEDULE_MOTOR_2", false); //this false means synchronous
+            xhttp.send();
         }
     </script>
 </html>

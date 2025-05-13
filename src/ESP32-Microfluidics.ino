@@ -19,6 +19,15 @@ bool checkBoxState[8] = {false}; //checkBoxState[0] never used
 // Set web server object with port number
 WebServer server(80);
 
+// Global Scheduling variables
+TaskHandle_t MotorTaskKey1; //task handle for motor 1
+StaticTask_t Motor1TCB; //task control block for motor 1
+StackType_t Motor1Stack[1024]; //stack for motor 1
+
+TaskHandle_t MotorTaskKey2; //task handle for motor 1
+StaticTask_t Motor2TCB; //task control block for motor 1
+StackType_t Motor2Stack[1024]; //stack for motor 1
+
 void setup() {
   Serial.begin(115200); // set serial baud rate to 115200 
   // Initialize and set GPIO
@@ -75,8 +84,35 @@ void setup() {
   //Run motors requests
   server.on("/RUN", runMotors);
   server.on("/KILL", killMotors);
+  //Scheduling
+  server.on("/SCHEDULE_MOTOR_1", ScheduleMotor1); //test timer function")
+  server.on("/SCHEDULE_MOTOR_2", ScheduleMotor2); //test timer function")
   //Start Server
   server.begin();
+
+
+  // Utalizing ESP32's FreeRTOS to create a tasks to run time sensative code.
+  /* Size allocated from 7 tasts = 4 kb * 7 = 28 kb 
+  of stack memory out of 320kb DRAM and 200kb IRAM.*/ 
+  MotorTaskKey1 = xTaskCreateStaticPinnedToCore(
+    Motor1Task, /* Function to implement the task */
+    "Motor1Task", /* Name of the task */
+    1024, /* stack allocated in words. 1024 words = 4096 bytes */
+    NULL, /* Task input parameter */
+    1, /* Priority of the task */
+    Motor1Stack, /* Stack handle. */
+    &Motor1TCB, /* TCB buffer */
+    1); /* Core where the task should run */
+
+  MotorTaskKey2 = xTaskCreateStaticPinnedToCore(
+    Motor2Task, /* Function to implement the task */
+    "Motor2Task", /* Name of the task */
+    1024, /* stack allocated in words. 1024 words = 4096 bytes */
+    NULL, /* Task input parameter */
+    1, /* Priority of the task */
+    Motor2Stack, /* Stack handle. */
+    &Motor2TCB, /* TCB buffer */
+    1); /* Core where the task should run */
 }
 
 // MAIN LOOP
@@ -337,4 +373,59 @@ void killMotors(){
 
   }
   server.send(200, "text/plain", ""); //Send web page
+}
+
+//scheduling test function
+void ScheduleMotor1(){
+  xTaskNotifyGive( MotorTaskKey1 ); //notify task to run in parallel
+  server.send(200, "text/plain", ""); //Send web page ok
+}
+
+void ScheduleMotor2(){
+  xTaskNotifyGive( MotorTaskKey2 ); //notify task to run in parallel
+  server.send(200, "text/plain", ""); //Send web page ok
+}
+
+void Motor1Task(void *pvParameters) {
+  while(true){
+    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
+                                                portMAX_DELAY = wait indefinitely until binary semaphore given.*/
+    setMotorNumRunKill(1, 0, true, false); //on
+    delay(3600000);//3600000ms = 1 hour (tested and seems like it works)
+    setMotorNumRunKill(1, 0, false, true);
+    delay(500);
+    setMotorNumRunKill(1, 0, true, false);//on 1
+    delay(500);
+    setMotorNumRunKill(1, 0, false, true);
+    delay(500);
+    setMotorNumRunKill(1, 0, true, false);//on 2
+    delay(500);
+    setMotorNumRunKill(1, 0, false, true);
+    delay(500);
+    setMotorNumRunKill(1, 0, true, false);//on 3
+    delay(500);
+    setMotorNumRunKill(1, 0, false, true);
+  }
+}
+
+void Motor2Task(void *pvParameters) {
+  while(true){
+    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
+                                                portMAX_DELAY = wait indefinitely until binary semaphore given.*/
+    setMotorNumRunKill(1, 0, true, false); //on
+    delay(3600000);
+    setMotorNumRunKill(1, 0, false, true);
+    delay(500);
+    setMotorNumRunKill(1, 0, true, false);//on 1
+    delay(500);
+    setMotorNumRunKill(1, 0, false, true);
+    delay(500);
+    setMotorNumRunKill(1, 0, true, false);//on 2
+    delay(500);
+    setMotorNumRunKill(1, 0, false, true);
+    delay(500);
+    setMotorNumRunKill(1, 0, true, false);//on 3
+    delay(500);
+    setMotorNumRunKill(1, 0, false, true);
+  }
 }
