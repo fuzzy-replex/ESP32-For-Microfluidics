@@ -86,12 +86,13 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             margin-top: 15px;
         }
         td, th {
-            border: 1px solid #dddddd;
+            border: 1px solid #b7b7b7;
             text-align: center;
             padding: 8px;
+            color: white
         }
         tr:nth-child(even) {
-            background-color: #dddddd;
+            background-color: #434343;
         }
         .velocity-input {
             width: 50px;
@@ -163,11 +164,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 </div>                                                                                          <!-- -->
             </div>
 
-            <!-- Run and Kill buttons-->
-            <div class="wrapper" style="margin-top: 10px;">
-                <button class="button" onclick="run()" style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
-                <button class="button" onclick="kill()" style="color: Tomato;" >Kill</button>
-            </div>
+            <!-- run and kill buttons moved outside of page div sections -->
         </div>
 
 
@@ -187,9 +184,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
               
                   <!-- Dynamic header swapping -->
                   <th>
-                    <div id="timeHeader-Absolute" style="display: block;">AbsoluteTime</div>
-                    <div id="timeHeader-Clock" style="display: none;">24ClockTime</div>
-                    <div id="timeHeader-DateTime" style="display: none;">DateTime</div>
+                    <div id="timeHeader-Absolute" style="display: block; color: white">AbsoluteTime</div>
+                    <div id="timeHeader-Clock" style="display: none; color: white">24ClockTime</div>
+                    <div id="timeHeader-DateTime" style="display: none; color: white">DateTime</div>
                   </th>
               
                   <th>Velocity (ω)</th>
@@ -247,10 +244,16 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
               
               </table>
         </div>
+        <!-- Runa and kill buttons -->
+        <div class="wrapper" style="margin-top: 10px;">
+            <button class="button" onclick="run()" style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
+            <button class="button" onclick="kill()" style="color: Tomato;" >Kill</button>
+        </div>
     </body>
 
     <!-- JAVA SCRIPT SECTION -->
     <script type="text/javascript">
+        let currentView = "Manual Mode"; // Track current view
         
         //microfluidics webdisplay functions
         function setAllMotors(){
@@ -439,13 +442,12 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         function run(){
             var xhttp = new XMLHttpRequest();
             xhttp.open("PUT", "RUN", false); //this false means synchronous
-            xhttp.send();
+            xhttp.send(currentView);
         }
         function kill(){
             var xhttp = new XMLHttpRequest();
-
             xhttp.open("PUT", "KILL", false); //this false means synchronous
-            xhttp.send();
+            xhttp.send(currentView);
         }
         
         //function to restrict MVR values to the range of -90000 to 90000
@@ -472,6 +474,24 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 mainView.style.display = "none";
                 secondaryView.style.display = "block";
             }
+
+            currentView = view; //Track current view
+            reset(); //clears all data in website
+        }
+
+        function reset(){
+            var xhttp = new XMLHttpRequest();
+            // Reset all motor velocities (1 through 7) and the "All" field
+            document.getElementById("MotorRotationalVelocityAll").value = 0;
+            for (let i = 1; i <= 7; i++) {
+                document.getElementById("MotorRotationalVelocity" + i).value = 0;
+            }
+            // Reset checkboxes (1 through 7)
+            for (let i = 1; i <= 7; i++) {
+                document.getElementById("checkbox" + i).checked = false;
+            }
+            xhttp.open("PUT", "RESET", false); //this false means synchronous
+            xhttp.send(currentView);
         }
 
         // Scheduling mode functions:
@@ -491,14 +511,17 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             });
         }
 
-        function scheduleMotor1(){
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SCHEDULE_MOTOR_1", false); //this false means synchronous
+        function scheduleUpdateMotor1(){
+            var xhttp1 = new XMLHttpRequest();
+            xhttp.open("PUT", "SCHEDULE_UPDATE_MOTOR_1", false); //this false means synchronous
+            xhttp.send();
+            var xhttp2 = new XMLHttpRequest();
+            xhttp.open("PUT", "SCHEDULE_UPDATE_TIME_1", false); //this false means synchronous
             xhttp.send();
         }
-        function scheduleMotor2(){
+        function scheduleUpdateMotor2(){
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SCHEDULE_MOTOR_2", false); //this false means synchronous
+            xhttp.open("PUT", "SCHEDULE_UPDATE_MOTOR_2", false); //this false means synchronous
             xhttp.send();
         }
     </script>

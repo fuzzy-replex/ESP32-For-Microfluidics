@@ -14,6 +14,7 @@ const int output23 = 23;
 const int MRV = 90000; //max rotational velocity
 int motorTurnVelocityRaw[8] = {0}; //Raw is value from -MRV to MRV
 int motorTurnVelocity255[8] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
+int motorTime[8] = {0}; //Scheduled time for each motor
 bool checkBoxState[8] = {false}; //checkBoxState[0] never used
 
 // Set web server object with port number
@@ -84,9 +85,14 @@ void setup() {
   //Run motors requests
   server.on("/RUN", runMotors);
   server.on("/KILL", killMotors);
+  //Reset all data
+  server.on("/RESET", reset); //reset all data
   //Scheduling
-  server.on("/SCHEDULE_MOTOR_1", ScheduleMotor1); //test timer function")
-  server.on("/SCHEDULE_MOTOR_2", ScheduleMotor2); //test timer function")
+  server.on("/SCHEDULE_UPDATE_MOTOR_1", setMotor1); //schedule motor 1
+  server.on("/SCHEDULE_UPDATE_MOTOR_2", setMotor2); //schedule motor 2
+
+  server.on("/SCHEDULE_UPDATE_TIME_1", setTime1); //schedule motor 1
+
   //Start Server
   server.begin();
 
@@ -358,9 +364,19 @@ void setMotor7(){
 
 //run motors that are checked
 void runMotors(){
-  for( int i = 1; i < 8; i++){
-    if( checkBoxState[i] == true ){
-      setMotorNumRunKill(i, motorTurnVelocityRaw[i], true);
+  String viewNav = server.arg("plain"); //plain means send raw data (viewState)
+  if(viewNav == "Manual Mode"){
+    for( int i = 1; i < 8; i++){
+      if( checkBoxState[i] == true ){
+        setMotorNumRunKill(i, motorTurnVelocityRaw[i], true);
+      }
+    }
+  }
+  else if(viewNav == "Scheduling Mode"){
+    for( int i = 1; i < 8; i++){
+      if( motorTurnVelocityRaw[i] != 0 ){
+        scheduleMotors(i); //schedule motors that aren't 0!
+      }
     }
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -375,15 +391,32 @@ void killMotors(){
   server.send(200, "text/plain", ""); //Send web page
 }
 
-//scheduling test function
-void ScheduleMotor1(){
-  xTaskNotifyGive( MotorTaskKey1 ); //notify task to run in parallel
+//reset all data
+void reset(){
+  String viewNav = server.arg("plain"); //plain means send raw data (viewState)
+  for( int i = 0; i < 8; i++){
+    setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
+    setMotorNumRunKill(i, 0); //setting motors to 0
+  }
+  if(viewNav == "Scheduling Mode"){
+    setCheckboxesOn(); //turn On all checkboxes in background of Scheduling view
+    //!check later becuase setting checkbox in background might not be nessasary
+  }
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-void ScheduleMotor2(){
-  xTaskNotifyGive( MotorTaskKey2 ); //notify task to run in parallel
-  server.send(200, "text/plain", ""); //Send web page ok
+void scheduleMotors(int num){
+  switch (num)
+  {
+    case 1:
+      xTaskNotifyGive( MotorTaskKey1 ); //notify task to run in parallel
+      break;
+    case 2:
+      xTaskNotifyGive( MotorTaskKey2 ); //notify task to run in parallel
+      break;
+    default:
+      break;
+  }
 }
 
 void Motor1Task(void *pvParameters) {
@@ -428,4 +461,10 @@ void Motor2Task(void *pvParameters) {
     delay(500);
     setMotorNumRunKill(1, 0, false, true);
   }
+}
+
+void setTime1(){
+  int time = server.arg("VALUE").toInt();
+  motorTime[1] = time; //set time for motor 1
+  server.send(200, "text/plain", ""); //Send web page ok
 }
