@@ -6,7 +6,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en" class="js-focus-visible">
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1">
         <link rel="icon" href="data:,">
         <style>
         html {
@@ -97,6 +97,14 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         .velocity-input {
             width: 50px;
         }
+        .crumpleByWord {
+            color: white;
+            flex: 1 1 auto;
+            min-width: 10ch;       /* Don't shrink smaller than 10 characters wide */
+            max-width: 100%;       /* Let it grow as needed */
+            word-break: break-word;
+            text-align: center;
+        }
         </style>
     </head>
             <!-- Background color of Body!!! -->
@@ -171,80 +179,32 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 <!-- Schedule Mode Section! -->
         <div id="schedulingMode" style="display: none;">
             <h2 class="title">Scheduling Mode</h2>
-            <!-- Changing Time Buttons -->
-            <div style="text-align: center">
-                <button onclick="showTimeView('AbsoluteTime')">AbsoluteTime</button>
-                <button onclick="showTimeView('ClockTime')">24ClockTime</button>
-                <button onclick="showTimeView('DateTime')">DateTime</button>
-            </div>
             <!-- Table -->
             <table>
                 <tr>
-                  <th>Motors</th>
-              
-                  <!-- Dynamic header swapping -->
-                  <th>
-                    <div id="timeHeader-Absolute" style="display: block; color: white">AbsoluteTime</div>
-                    <div id="timeHeader-Clock" style="display: none; color: white">24ClockTime</div>
-                    <div id="timeHeader-DateTime" style="display: none; color: white">DateTime</div>
-                  </th>
-              
-                  <th>Velocity (ω)</th>
+                    <th>DateTime</th>
+                    <th class="crumpleByWord">Elapsed Time (time switching motors)</th>
+                    <th>Velocity (&omega)</th>
                 </tr>
-              
                 <!-- Motor 1 -->
                 <tr>
-                  <td>Motor 1</td>
-                  <td>
-                    <div class="timeModes">
-                      <div class="AbsoluteTime" style="display: block;">
-                        <div style="display: inline-flex; align-items: center;">
-                          <input type="number" min="0" placeholder="HH" style="width: 40px; text-align: center;">
-                          <span>:</span>
-                          <input type="number" min="0" max="59" placeholder="MM" style="width: 40px; text-align: center;">
-                          <span>:</span>
-                          <input type="number" min="0" max="59" placeholder="SS" style="width: 40px; text-align: center;">
+                    <td>
+                        <input id="dateTime" type="datetime-local" style="width: 170px;">
+                    </td>
+                    <td>
+                        <div>
+                            <input id="ellapseTimeMotorSwitching" type="number" value="0" min="0" oninput="checkEllapseTime()">
+                            <div id="ellapseTimeWarning" style="color: orange; display: none; font-size: 0.8em;">Range (0,inf).</div>
                         </div>
-                      </div>
-                      <div class="ClockTime" style="display: none;">
-                        <input type="time" step="1" style="width: 116px;">
-                      </div>
-                      <div class="DateTime" style="display: none;">
-                        <input type="datetime-local" style="width: 170px;">
-                      </div>
-                    </div>
-                  </td>
-                  <td><input type="number" class="velocity-input" value="0"></td>
+                    </td>
+                    <td>
+                        <input id="scheduledMRV" type="number" class="velocity-input" value="0">
+                    </td>
                 </tr>
-              
-                <!-- Motor 2 -->
-                <tr>
-                  <td>Motor 2</td>
-                  <td>
-                    <div class="timeModes">
-                      <div class="AbsoluteTime" style="display: block;">
-                        <div style="display: inline-flex; align-items: center;">
-                          <input type="number" min="0" placeholder="HH" style="width: 40px; text-align: center;">
-                          <span>:</span>
-                          <input type="number" min="0" max="59" placeholder="MM" style="width: 40px; text-align: center;">
-                          <span>:</span>
-                          <input type="number" min="0" max="59" placeholder="SS" style="width: 40px; text-align: center;">
-                        </div>
-                      </div>
-                      <div class="ClockTime" style="display: none;">
-                        <input type="time" step="1" style="width: 116px;">
-                      </div>
-                      <div class="DateTime" style="display: none;">
-                        <input type="datetime-local" style="width: 170px;">
-                      </div>
-                    </div>
-                  </td>
-                  <td><input type="number" class="velocity-input" value="0"></td>
-                </tr>
-              
-              </table>
+            </table>
         </div>
-        <!-- Runa and kill buttons -->
+        <!-- outside both page div sections. The following code is global to all pages on website -->
+        <!-- Run and kill buttons -->
         <div class="wrapper" style="margin-top: 10px;">
             <button class="button" onclick="run()" style="color: MediumSeaGreen; margin-right: 10px;">Run</button>
             <button class="button" onclick="kill()" style="color: Tomato;" >Kill</button>
@@ -441,8 +401,40 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         function run(){
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "RUN", false); //this false means synchronous
-            xhttp.send(currentView);
+            if(currentView === "Manual Mode"){
+                xhttp.open("PUT", "MANUAL_RUN", false); //this false means synchronous
+            }
+            else if(currentView === "Scheduling Mode"){
+                const ellapseTimeMS = parseFloat(document.getElementById("ellapseTimeMotorSwitching").value) * 1000; //convert to milliseconds
+                if( ellapseTimeMS === 0 ){
+                    alert("Please set a non-zero elapsed time.");
+                    return;
+                }
+                const scheduledMRV = document.getElementById("scheduledMRV").value;
+                const dateTime = document.getElementById("dateTime").value;
+
+                const targetDate = new Date(dateTime);
+
+                if (isNaN(targetDate.getTime())) {
+                    alert("Invalid date or time entered");
+                    return;
+                }
+
+                const scheduledDateTimeStamp = targetDate.getTime(); //UTC absolute timestamp
+
+                const nowUTCMS = new Date().getTime(); //UTC absolute timestamp
+
+                if (scheduledDateTimeStamp <= nowUTCMS) {
+                    alert("Please choose a future date and time.");
+                    return;
+                }
+
+                // update 
+                updateScheduleOnHost(ellapseTimeMS, scheduledMRV, scheduledDateTimeStamp);
+
+                xhttp.open("PUT", "SCHEDULE_RUN", false); //this false means synchronous
+            }
+            xhttp.send();
         }
         function kill(){
             var xhttp = new XMLHttpRequest();
@@ -494,35 +486,28 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             xhttp.send(currentView);
         }
 
-        // Scheduling mode functions:
-        function showTimeView(view) {
-            // Header toggle
-            document.getElementById("timeHeader-Absolute").style.display = (view === "AbsoluteTime") ? "block" : "none";
-            document.getElementById("timeHeader-Clock").style.display = (view === "ClockTime") ? "block" : "none";
-            document.getElementById("timeHeader-DateTime").style.display = (view === "DateTime") ? "block" : "none";
+        function updateScheduleOnHost(ellapseTimeMS, scheduledMRV, scheduledDateTimeStamp){
+            var xhttpDateTime = new XMLHttpRequest();
+            xhttpDateTime.open("PUT", "SCHEDULED_DATE_TIME?VALUE="+scheduledDateTimeStamp, false); //this false means synchronous
+            xhttpDateTime.send();
+            var xhttpEllapse = new XMLHttpRequest();
+            xhttpEllapse.open("PUT", "SCHEDULE_ELLAPSE_TIME?VALUE="+ellapseTimeMS, false); //this false means synchronous
+            xhttpEllapse.send();
+            var xhttpMRV = new XMLHttpRequest();
+            xhttpMRV.open("PUT", "SCHEDULE_MRVRaw?VALUE="+scheduledMRV, false); //this false means synchronous
+            xhttpMRV.send();
+        }
 
-            // Time cell toggle for each motor
-            const modes = ["AbsoluteTime", "ClockTime", "DateTime"];
-            modes.forEach(mode => {
-            const elements = document.getElementsByClassName(mode);
-            for (let el of elements) {
-                el.style.display = (view === mode) ? "block" : "none";
+        function checkEllapseTime(){
+            const ellapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitching").value);
+            var warningEllapseTime = document.getElementById("ellapseTimeWarning");
+            
+            if( ellapseTimeS === 0 ){
+                warningEllapseTime.style.display = "inline"; // show warning
             }
-            });
-        }
-
-        function scheduleUpdateMotor1(){
-            var xhttp1 = new XMLHttpRequest();
-            xhttp.open("PUT", "SCHEDULE_UPDATE_MOTOR_1", false); //this false means synchronous
-            xhttp.send();
-            var xhttp2 = new XMLHttpRequest();
-            xhttp.open("PUT", "SCHEDULE_UPDATE_TIME_1", false); //this false means synchronous
-            xhttp.send();
-        }
-        function scheduleUpdateMotor2(){
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SCHEDULE_UPDATE_MOTOR_2", false); //this false means synchronous
-            xhttp.send();
+            else{
+                warningEllapseTime.style.display = "none"; // hide warning
+            }
         }
     </script>
 </html>
