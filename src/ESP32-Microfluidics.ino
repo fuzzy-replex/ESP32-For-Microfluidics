@@ -18,14 +18,6 @@ const char* time_zone_str = "UTC0";
 const int totalNumberOfMotors = 7; //number of motors
 
 // GPIO pins vairables
-const int output23 = 23;//1
-const int output22 = 22;
-const int output01 = 5;//3
-const int output02 = 4;
-const int output21 = 21;//5
-const int output19 = 19;
-const int output18 = 18;//7
-const int output05 = 5;//not used for now...
 const int motorPins[7] = {23, 22, 5, 4, 21, 19, 18}; //GPIO pins for motors
 
 // Motor state variables

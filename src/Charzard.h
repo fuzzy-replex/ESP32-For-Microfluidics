@@ -82,8 +82,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         table {
             font-family: arial, sans-serif;
             border-collapse: collapse;
+            max-width: 600px;
             width: 100%;
             margin-top: 15px;
+            margin-left: auto;
+            margin-right: auto;
         }
         td, th {
             border: 1px solid #b7b7b7;
@@ -91,11 +94,20 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             padding: 8px;
             color: white
         }
+        th.datetime-col, td.datetime-col {
+            width: 170px;
+        }
+        th.ellapse-col, td.ellapse-col {
+            width: 200px;
+        }
+        th.velocity-col, td.velocity-col {
+            width: 100px;
+        }
         tr:nth-child(even) {
             background-color: #434343;
         }
         .velocity-input {
-            width: 50px;
+            width: 60px;
         }
         .crumpleByWord {
             color: white;
@@ -182,23 +194,40 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             <!-- Table -->
             <table>
                 <tr>
-                    <th>DateTime</th>
-                    <th class="crumpleByWord">Elapsed Time (time switching motors)</th>
-                    <th>Velocity (&omega)</th>
+                    <th class="datetime-col">DateTime</th>
+                    <th>
+                        <div class="ellapse-col crumpleByWord">
+                            Elapsed Time 
+                        </div>
+                        <div style="font-size: 0.6em;">
+                            (time switching motors)
+                        </div>
+                    </th>
+                    
+                    <th class="velocity-col">
+                        <div>
+                            Velocity (&omega;)
+                        </div>
+                        <div style="font-size: 0.6em;">
+                            (-90000, 90000)
+                        </div>
+                    </th>
                 </tr>
                 <!-- Motor 1 -->
                 <tr>
-                    <td>
+                    <td class="datetime-col">
                         <input id="dateTime" type="datetime-local" style="width: 170px;">
                     </td>
-                    <td>
+                    <td class="ellapse-col">
                         <div>
-                            <input id="ellapseTimeMotorSwitching" type="number" value="0" min="0" oninput="checkEllapseTime()">
-                            <div id="ellapseTimeWarning" style="color: orange; display: none; font-size: 0.8em;">Range (0,inf).</div>
+                            <input id="ellapseTimeMotorSwitching" type="number" value="0" min="0" onchange="checkEllapseTime()">
+                        </div>
+                        <div id="ellapseTimeWarning" style="color: orange; display: none; font-size: 0.8em;">
+                            Range (0,inf).
                         </div>
                     </td>
-                    <td>
-                        <input id="scheduledMRV" type="number" class="velocity-input" value="0">
+                    <td class="velocity-col">
+                        <input id="scheduledMRV" type="number" class="velocity-input" value="0" onchange="verifyRangeMRV(this.value)">
                     </td>
                 </tr>
             </table>
@@ -486,6 +515,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             xhttp.send(currentView);
         }
 
+        function verifyRangeMRV( MRVRaw ){
+            MRVRaw = rangeRestrictionMVR(MRVRaw)
+            document.getElementById("scheduledMRV").value = MRVRaw;
+        }
+
         function updateScheduleOnHost(ellapseTimeMS, scheduledMRV, scheduledDateTimeStamp){
             var xhttpDateTime = new XMLHttpRequest();
             xhttpDateTime.open("PUT", "SCHEDULED_DATE_TIME?VALUE="+scheduledDateTimeStamp, false); //this false means synchronous
@@ -502,7 +536,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             const ellapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitching").value);
             var warningEllapseTime = document.getElementById("ellapseTimeWarning");
             
-            if( ellapseTimeS === 0 ){
+            if( ellapseTimeS <= 0 ){
                 warningEllapseTime.style.display = "inline"; // show warning
             }
             else{
