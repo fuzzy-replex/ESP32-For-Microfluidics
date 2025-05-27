@@ -82,7 +82,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         table {
             font-family: arial, sans-serif;
             border-collapse: collapse;
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             margin-top: 15px;
             margin-left: auto;
@@ -101,13 +101,13 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             width: 200px;
         }
         th.velocity-col, td.velocity-col {
-            width: 100px;
+            width: 200px;
         }
         tr:nth-child(even) {
             background-color: #434343;
         }
         .velocity-input {
-            width: 60px;
+            width: 70px;
         }
         .crumpleByWord {
             color: white;
@@ -138,7 +138,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         <div id="manualMode" style="display: block;">
             <h2 class="title">Manual Mode</h2>
             <p style="color: rgb(255, 255, 255);">Motor Rotational Velocity:</p>
-            <p style="color: rgb(255, 255, 255); font-size: 10px;">Accepted Range {-90000, 90000}</p>
+            <p style="color: rgb(255, 255, 255); font-size: 10px;">Accepted Range [-90000, 90000]</p>
         
             <!-- Modify All MVR and All Checkboxes GUI-->
             <div class="wrapper">
@@ -197,19 +197,19 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                     <th class="datetime-col">DateTime</th>
                     <th>
                         <div class="ellapse-col crumpleByWord">
-                            Elapsed Time 
+                            Elapsed Time
                         </div>
                         <div style="font-size: 0.6em;">
-                            (time switching motors)
+                            (time switching between motors)
                         </div>
                     </th>
                     
                     <th class="velocity-col">
                         <div>
-                            Velocity (&omega;)
+                            Velocity <small><small></small>(<sup>&mu;_steps</sup>&frasl;<sub>sec</sub><small></small>)
                         </div>
                         <div style="font-size: 0.6em;">
-                            (-90000, 90000)
+                            [-90000, 90000]
                         </div>
                     </th>
                 </tr>
@@ -219,8 +219,10 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                         <input id="dateTime" type="datetime-local" style="width: 170px;">
                     </td>
                     <td class="ellapse-col">
-                        <div>
-                            <input id="ellapseTimeMotorSwitching" type="number" value="0" min="0" onchange="checkEllapseTime()">
+                        <div style="display: flex; align-items: center; justify-content: center;">
+                            <input style="width:40px;" id="ellapseTimeMotorSwitchingHours" type="number" value="0" min="0" onchange="checkEllapseTime()"> hrs&nbsp;:&nbsp;
+                            <input style="width:40px;" id="ellapseTimeMotorSwitchingMinutes" type="number" value="0" min="0" onchange="checkEllapseTime()"> mins&nbsp;:&nbsp;
+                            <input style="width:40px;" id="ellapseTimeMotorSwitchingSeconds" type="number" value="0" min="0" onchange="checkEllapseTime()"> secs
                         </div>
                         <div id="ellapseTimeWarning" style="color: orange; display: none; font-size: 0.8em;">
                             Range (0,inf).
@@ -434,7 +436,10 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 xhttp.open("PUT", "MANUAL_RUN", false); //this false means synchronous
             }
             else if(currentView === "Scheduling Mode"){
-                const ellapseTimeMS = parseFloat(document.getElementById("ellapseTimeMotorSwitching").value) * 1000; //convert to milliseconds
+                const totalEllapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitchingHours").value) * 3600 +
+                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingMinutes").value) * 60 +
+                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingSeconds").value);
+                const ellapseTimeMS = totalEllapseTimeS * 1000; //convert to milliseconds
                 if( ellapseTimeMS === 0 ){
                     alert("Please set a non-zero elapsed time.");
                     return;
@@ -533,10 +538,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function checkEllapseTime(){
-            const ellapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitching").value);
             var warningEllapseTime = document.getElementById("ellapseTimeWarning");
-            
-            if( ellapseTimeS <= 0 ){
+            const totalEllapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitchingHours").value) * 3600 +
+                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingMinutes").value) * 60 +
+                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingSeconds").value);
+            if( totalEllapseTimeS <= 0 ){
                 warningEllapseTime.style.display = "inline"; // show warning
             }
             else{

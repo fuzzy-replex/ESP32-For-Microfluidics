@@ -54,3 +54,6 @@ I use the server.arg method to pull the STATE of the checkbox and store it in my
 Note: STATE is a variable defined in the put request and has to match.
 
 All functions that are called by the server.on method needs to send the server(200, "anything", ""); You can use this to send messages back to the client but in my case I didn't.
+
+//*editors note
+    need to add a section talking about how time is reletive to UTC meaning local user machines should be synced exactly to thier timezone. (i write this becuase my computer has a 5 second delay which makes it look like there's 5 seconds latency but it's just the local machine.)
