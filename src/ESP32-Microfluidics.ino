@@ -3,7 +3,16 @@
 #include "Charzard.h" // contains the HTML code and JS logic of the web server.
 #include "time.h" // Contains time functions
 #include "esp_sntp.h" // NTP (Network Time Protocol) client functionality
+#include <vector>
 
+/* What's next to do:
+    - put dynamic motor control into manual mode.
+    - put dynamic motor control into scheduling mode.
+    - check for bugs and fix up code.
+    - start designing scheduling queue.
+    - implment dynaimcic schedluing.
+    - add UI for dynaimcic scheduling.
+*/
 
 // The ssid and password are the typical wifi or network connection credentials
 const char* ssid     = "YoureInAComaWakeUp"; 
@@ -11,21 +20,23 @@ const char* password = "WakeUpEthan";
 
 //NTP configuration
 const char* ntpServer = "pool.ntp.org"; // Standard NTP server pool
-const long gmtOffset_sec = 0;      // GMT Offset for EST (-5 hours * 3600 seconds/hour)
+const long gmtOffSetSec = 0;      // GMT Offset for EST (-5 hours * 3600 seconds/hour)
 const int daylightOffset_sec = 0;    // Daylight saving offset for EDT (+1 hour * 3600 seconds/hour)
 const char* time_zone_str = "UTC0";
 
-const int totalNumberOfMotors = 7; //number of motors
+const int MAX_MOTORS = 6; //Max number of motor in use!
+const int MAX_PINS = 7; //Max number of GPIO pins available for motors.
 
 // GPIO pins vairables
-const int motorPins[7] = {23, 22, 5, 4, 21, 19, 18}; //GPIO pins for motors
+std::vector<int> motorPins;
+const int motorPinPool[MAX_PINS] = {23, 22, 5, 4, 21, 19, 18};//possible pin order
 
 // Motor state variables
 const int MRV = 90000; //max rotational velocity
-int motorTurnVelocityRaw[8] = {0}; //Raw is value from -MRV to MRV
-int motorTurnVelocity255[8] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
-int motorTime[8] = {0}; //Scheduled time for each motor
-bool checkBoxState[8] = {false}; //checkBoxState[0] never used
+int motorTurnVelocityRaw[MAX_MOTORS+1] = {0}; //Raw is value from -MRV to MRV
+int motorTurnVelocity255[MAX_MOTORS+1] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
+int motorTime[MAX_MOTORS+1] = {0}; //Scheduled time for each motor
+bool checkBoxState[MAX_MOTORS+1] = {false}; //checkBoxState[0] never used
 
 // Set web server object with port number
 WebServer server(80);
@@ -36,39 +47,30 @@ int scheduledMRVRaw = 0; //scheduled motor rotational velocity
 volatile uint64_t scheduledDateTimeStampUTCMS; //UTC local date and time in ms
 volatile uint64_t finalDelayMsToScheduledEvent; // Will store the calculated delay from now until the scheduled event.
 
-TaskHandle_t MotorTaskKey1; //task handle for motor 1
-StaticTask_t Motor1TCB; //task control block for motor 1
-StackType_t Motor1Stack[1024]; //stack for motor 1
+TaskHandle_t motorTaskHandles[MAX_MOTORS]; //task handle for motors
+StaticTask_t motorTaskTCBs[MAX_MOTORS]; //task control block for motors
+StackType_t motorTaskStacks[MAX_MOTORS][1024]; //stack for motors
 
-TaskHandle_t MotorTaskKey2; //task handle for motor 2
-StaticTask_t Motor2TCB; //task control block for motor 2
-StackType_t Motor2Stack[1024]; //stack for motor 2
+typedef struct {
+  int motorId; //specific motor
+  int gpioPin; //gpio for motor
+  long initialDelayMultiplier; //Schedluing delay multiplier
+} MotorTaskParams_t;
 
-TaskHandle_t MotorTaskKey3; //task handle for motor 3
-StaticTask_t Motor3TCB; //task control block for motor 3
-StackType_t Motor3Stack[1024]; //stack for motor 3
+MotorTaskParams_t motorTaskParams[MAX_MOTORS];
 
-TaskHandle_t MotorTaskKey4; //task handle for motor 4
-StaticTask_t Motor4TCB; //task control block for motor 4
-StackType_t Motor4Stack[1024]; //stack for motor 4
-
-TaskHandle_t MotorTaskKey5; //task handle for motor 5
-StaticTask_t Motor5TCB; //task control block for motor 5
-StackType_t Motor5Stack[1024]; //stack for motor 5
-
-TaskHandle_t MotorTaskKey6; //task handle for motor 6
-StaticTask_t Motor6TCB; //task control block for motor 6
-StackType_t Motor6Stack[1024]; //stack for motor 6
-
-TaskHandle_t MotorTaskKey7; //task handle for motor 7
-StaticTask_t Motor7TCB; //task control block for motor 7
-StackType_t Motor7Stack[1024]; //stack for motor 7
+bool motorTaskActive[MAX_MOTORS] = {false}; //current task status
 
 void setup() {
   Serial.begin(115200); // set serial baud rate to 115200 
   
+  //fill motorPins vector with motor pins
+  for ( int i = 0; i < MAX_MOTORS; i++) {
+    motorPins.push_back(motorPinPool[i]); 
+  }
+
   // Initialize and set GPIO
-  for(int i = 0; i < 7; i++){
+  for(int i = 0; i < MAX_MOTORS; i++){
     pinMode(motorPins[i], OUTPUT); //set GPIO pins to output
     digitalWrite(motorPins[i], LOW); //set GPIO pins to low
   }
@@ -94,7 +96,7 @@ void setup() {
 
   // Initialize NTP client
   Serial.println("Configuring time with NTP server (UTC)...");
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); // Configure NTP for UTC
+  configTime(gmtOffSetSec, daylightOffset_sec, ntpServer); // Configure NTP for UTC
   setenv("TZ", time_zone_str, 1); // Set the timezone environment variable to UTC
   tzset(); // Apply the timezone
 
@@ -107,10 +109,10 @@ void setup() {
       Serial.printf("Current synchronized UTC time: %s", asctime(&timeinfo));
   }
   
-  /* on server http request execute function
-     server.handleClient() compares request to
+  /* on server http request, compare request to
      first parameter and then executes the function
-     in the second parameter. */
+     in the second parameter. This class object is 
+     called by server.handleClient() in main loop. */
   // Send webpage
   server.on("/", SendWebsite); //fowardslash is sent by the website on web ip load.
   //Modify ALL motors checkbox requests
@@ -182,103 +184,29 @@ void SendWebsite() {
     kill:     false, updates the motorTurnVelocityRaw
               true, keeps the previous motorTurnVelocityRaw and sets motor to 0
               regardless of value.*/
+
 void setMotorNumRunKill( int num, int value, int run = false, int kill = false ){
-  switch (num)
-  {
-    case 0:
-      motorTurnVelocityRaw[0] = value;
-      break;
-    case 1:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_1, 0 );
-        analogWrite(motorPins[0], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[1] = value;
-      motorTurnVelocity255[1] = map( motorTurnVelocityRaw[1], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_1, motorTurnVelocityRaw[1] );
-        analogWrite(motorPins[0], motorTurnVelocity255[1]);
-      }
-      break;
-    case 2:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_2, 0 );
-        analogWrite(motorPins[1], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[2] = value;
-      motorTurnVelocity255[2] = map( motorTurnVelocityRaw[2], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_2, motorTurnVelocityRaw[2] );
-        analogWrite(motorPins[1], motorTurnVelocity255[2]);
-      }
-      break;
-    case 3:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_3, 0 );
-        analogWrite(motorPins[2], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[3] = value;
-      motorTurnVelocity255[3] = map( motorTurnVelocityRaw[3], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_3, motorTurnVelocityRaw[3] );
-        analogWrite(motorPins[2], motorTurnVelocity255[3]);
-      }
-      break;
-    case 4:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_4, 0 );
-        analogWrite(motorPins[3], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[4] = value;
-      motorTurnVelocity255[4] = map( motorTurnVelocityRaw[4], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_4, motorTurnVelocityRaw[4] );
-        analogWrite(motorPins[3], motorTurnVelocity255[4]);
-      }
-      break;
-    case 5:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_5, 0 );
-        analogWrite(motorPins[4], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[5] = value;
-      motorTurnVelocity255[5] = map( motorTurnVelocityRaw[5], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_5, motorTurnVelocityRaw[5] );
-        analogWrite(motorPins[4], motorTurnVelocity255[5]);
-      }
-      break;
-    case 6:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_6, 0 );
-        analogWrite(motorPins[5], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[6] = value;
-      motorTurnVelocity255[6] = map( motorTurnVelocityRaw[6], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_6, motorTurnVelocityRaw[6] );
-        analogWrite(motorPins[5], motorTurnVelocity255[6]);
-      }
-      break;
-    case 7:
-      if(kill == true){
-        //void updateMotor( &stepper_driver_7, 0 );
-        analogWrite(motorPins[6], 0);
-        break;
-      }// else kill == false
-      motorTurnVelocityRaw[7] = value;
-      motorTurnVelocity255[7] = map( motorTurnVelocityRaw[7], -MRV, MRV, 0, 255 );
-      if(run == true){
-        //void updateMotor( &stepper_driver_7, motorTurnVelocityRaw[7] );
-        analogWrite(motorPins[6], motorTurnVelocity255[7]);
-      }
-      break;
+  if (num == 0) {
+    // Motor 0 controls all motors.
+    motorTurnVelocityRaw[0] = value;
+    return; // Exit after handling the special case
+  }
+
+  int motorIndex = num - 1; // Convert 1-indexed motor ID to 0-indexed array index
+
+  if (kill == true) {
+    //void updateMotor( &stepper_driver_6, 0 ); //stop motor
+    analogWrite(motorPins[motorIndex], 0); // Turn off motor
+    return; // Kill takes priority, so no further processing for this call
+  }
+
+  // If not killing, update velocity and run if 'run' flag is true
+  motorTurnVelocityRaw[num] = value; // Store raw value (use num for consistency with existing arrays)
+  motorTurnVelocity255[num] = map(motorTurnVelocityRaw[num], -MRV, MRV, 0, 255);
+
+  if (run == true) {
+    //void updateMotor( &stepper_driver_6, motorTurnVecolityRaw[num] ); //start motor
+    analogWrite(motorPins[motorIndex], motorTurnVelocity255[num]);
   }
 }
 
@@ -298,7 +226,7 @@ void checkBoxToggleOn( int num ){
 
 void setCheckboxesOn(){
   //Serial.println("set buttons on");
-  for( int i = 1; i < 8; i++){
+  for( int i = 1; i <= MAX_MOTORS; i++){
     checkBoxToggleOn(i); //toggle all checkboxes on
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -306,7 +234,7 @@ void setCheckboxesOn(){
 
 void setCheckboxesOff(){
   //Serial.println("set checkboxes off");
-  for( int i = 1; i < 8; i++){
+  for( int i = 1; i <= MAX_MOTORS; i++){
     setMotorNumRunKill(i, 0, true, true); //toggle all checkboxes off
     checkBoxToggleOff(i); //toggle all checkboxes off
   }
@@ -314,15 +242,15 @@ void setCheckboxesOff(){
 }
 
 void setMotors(){
-  for( int i = 1; i < 8; i++ ){
+  for( int i = 1; i <= MAX_MOTORS; i++ ){
     setMotorNumRunKill( i, motorTurnVelocityRaw[0] ); //set all motors to the same value
   }
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-//checkbox invidual toggles
+//checkbox invidual toggles (Can condense these into one function will implement soon).
 void checkBox1Toggle(){
-  bool checkState = (server.arg("STATE") == "true"); //return string of js bool
+  bool checkState = (server.arg("STATE") == "true"); //checkState saves boolean equivalance outcome.
   checkBoxState[1] = checkState;
   if(checkState == false)
     setMotorNumRunKill(1, 0, true, true); //kill motor if it was on
@@ -430,7 +358,7 @@ void setMotor7(){
 ////run motors in manual mode
 void manualMotorsRun(){
   Serial.printf("Manual Mode\n");
-  for( int i = 1; i < 8; i++){
+  for( int i = 1; i < MAX_MOTORS+1; i++){
     if( checkBoxState[i] == true ){
       setMotorNumRunKill(i, motorTurnVelocityRaw[i], true);
     }
@@ -448,8 +376,9 @@ void scheduleMotorsRun(){
   uint64_t current_unix_ms  = (tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
   finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
   
-  for( int i = 1; i < 8; i++){
-    scheduleMotors(i); //Run all scheduled motors
+  for( int i = 0; i < MAX_MOTORS; i++){
+    if(motorTaskActive[i] && checkBoxState[i+1])
+      xTaskNotifyGive(motorTaskHandles[i]); //Run all scheduled motors
   }
   server.send(200, "text/plain", ""); //Send web page ok
 }
@@ -457,7 +386,7 @@ void scheduleMotorsRun(){
 // kills all motors.
 void killMotors(){
   deleteMotorTasks(); //delete all tasks
-  for( int i = 1; i < 8; i++){
+  for( int i = 1; i <= MAX_MOTORS; i++){
     setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
   }
   setupMotorTasks(); //recreate all tasks
@@ -467,9 +396,9 @@ void killMotors(){
 //reset all data
 void reset(){
   String viewNav = server.arg("plain"); //plain means send raw data (viewState)
-  for( int i = 0; i < 8; i++){
+  for( int i = 1; i <= MAX_MOTORS; i++){
     setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
-    setMotorNumRunKill(i, 0); //setting motors to 0
+    setMotorNumRunKill(i, 0); //setting motors to 0 (check this migh be redundant)
   }
   if(viewNav == "Scheduling Mode"){
     setCheckboxesOn(); //turn On all checkboxes in background of Scheduling view
@@ -478,32 +407,33 @@ void reset(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-void scheduleMotors(int num){
-  switch (num)
-  {
-    case 1:
-      xTaskNotifyGive( MotorTaskKey1 ); //notify task to run in parallel
-      break;
-    case 2:
-      xTaskNotifyGive( MotorTaskKey2 );
-      break;
-    case 3:
-      xTaskNotifyGive( MotorTaskKey3 );
-      break;
-    case 4:
-      xTaskNotifyGive( MotorTaskKey4 );
-      break;
-    case 5:
-      xTaskNotifyGive( MotorTaskKey5 );
-      break;
-    case 6:
-      xTaskNotifyGive( MotorTaskKey6 );
-      break;
-    case 7:
-      xTaskNotifyGive( MotorTaskKey7 );
-      break;
-    default:
-      break;
+void MotorControlTask(void *pvParameters) {
+  MotorTaskParams_t *params = (MotorTaskParams_t *)pvParameters;
+  int motorId = params->motorId;
+  int gpioPin = params->gpioPin;
+  long initialDelayOffset = params->initialDelayMultiplier;
+
+  while (true) {
+    // Wait indefinitely until this task receives a notification to run
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // These are global scheduling variables, so they apply to all notified tasks.
+    TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
+    TickType_t motorStaggerDelay_DT = pdMS_TO_TICKS(ellapseMotorSwappingTimeMS * initialDelayOffset);
+    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorSwappingTimeMS);
+
+    // Delay until the common scheduled start time
+    vTaskDelay(timeUntilScheduledEvent_DT);
+
+    // Apply the individual motor's staggered delay
+    vTaskDelay(motorStaggerDelay_DT);
+
+    if (checkBoxState[motorId]) {
+        // need to pass motorparam to test gpio in setMotorNumRunKill dynamically
+        setMotorNumRunKill(motorId, scheduledMRVRaw, true, false); // Turn motor ON
+        vTaskDelay(motorRunDuration_DT); // Run for the specified duration
+        setMotorNumRunKill(motorId, 0, false, true); // Turn motor OFF
+    }
   }
 }
 
@@ -522,216 +452,42 @@ void updateMRVRaw(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-void Motor1Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS*6 );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    setMotorNumRunKill(1, scheduledMRVRaw, true, false); //on
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT); //delay for ellapseMotorSwappingTimeMS
-    setMotorNumRunKill(1, 0, false, true);
-  }
-}
+// This function will initially create all MAX_MOTORS tasks.
+// later refine it to only create tasks of motors that are 'added' by the user.
+// For now, it makes sure all potential tasks are set up at boot.
+void setupMotorTasks() {
+  for (int i = 0; i < MAX_MOTORS; i++) {
+    // Check if the task for this slot is not already created
+    if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
+      // Initialize motor-specific parameters for this task
+      motorTaskParams[i].motorId = i + 1; // Motor IDs typically start from 1
+      motorTaskParams[i].gpioPin = motorPins[i]; // Map to corresponding GPIO pin
+      motorTaskParams[i].initialDelayMultiplier = i; // Motor 1 has 0 delay, Motor 2 has 1x delay, etc.
 
-void Motor2Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS*6 );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    setMotorNumRunKill(2, scheduledMRVRaw, true, false); //on
-    delay(ellapseMotorSwappingTimeMS*1);
-    setMotorNumRunKill(2, 0, false, true);
-  }
-}
+      motorTaskHandles[i] = xTaskCreateStaticPinnedToCore(
+        MotorControlTask,                             /* Function to implement the task */
+        ("Motor" + String(i + 1) + "Task").c_str(), /* Name of the task (e.g., "Motor1Task") */
+        1024,                                         /* Stack size in words (4KB) */
+        &motorTaskParams[i],                              /* Task input parameter (pointer to motorParams struct) */
+        1,                                            /* Priority of the task */
+        motorTaskStacks[i],                           /* Stack buffer */
+        &motorTaskTCBs[i],                            /* TCB buffer */
+        1                                             /* Core where the task should run */
+      );
 
-void Motor3Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*1);
-    setMotorNumRunKill(3, scheduledMRVRaw, true, false); //on
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*1);
-    setMotorNumRunKill(3, 0, false, true);
-  }
-}
-
-void Motor4Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*2);
-    setMotorNumRunKill(4, scheduledMRVRaw, true, false); //on
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*1);
-    setMotorNumRunKill(4, 0, false, true);
-  }
-}
-
-void Motor5Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*3);
-    setMotorNumRunKill(5, scheduledMRVRaw, true, false); //on
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*1);
-    setMotorNumRunKill(5, 0, false, true);
-  }
-}
-
-void Motor6Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*4);
-    setMotorNumRunKill(6, scheduledMRVRaw, true, false); //on
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*1);
-    setMotorNumRunKill(6, 0, false, true);
-  }
-}
-
-void Motor7Task(void *pvParameters) {
-  while(true){
-    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );/*pdTRUE = set binary semaphore count on notifictaion to 0,
-                                                portMAX_DELAY = wait indefinitely until binary semaphore given.
-    */
-    TickType_t timeUntilDate_DT = pdMS_TO_TICKS( finalDelayMsToScheduledEvent );
-    TickType_t ellapseMotorSwappingTimeMS_DT = pdMS_TO_TICKS( ellapseMotorSwappingTimeMS );
-    vTaskDelay(timeUntilDate_DT); //delay for timeUntilDateMS
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*5);
-    setMotorNumRunKill(7, scheduledMRVRaw, true, false); //on
-    vTaskDelay(ellapseMotorSwappingTimeMS_DT*1);
-    setMotorNumRunKill(7, 0, false, true);
-  }
-}
-
-void setupMotorTasks(){
-  if(MotorTaskKey1 == NULL) {
-    MotorTaskKey1 = xTaskCreateStaticPinnedToCore(
-      Motor1Task, /* Function to implement the task */
-      "Motor1Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor1Stack, /* Stack handle. */
-      &Motor1TCB, /* TCB buffer */
-      1); /* Core where the task should run */
-  }
-  if(MotorTaskKey2 == NULL) {
-    MotorTaskKey2 = xTaskCreateStaticPinnedToCore(
-      Motor2Task, /* Function to implement the task */
-      "Motor2Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor2Stack, /* Stack handle. */
-      &Motor2TCB, /* TCB buffer */
-      1); /* Core where the task should run */
-  }
-  if(MotorTaskKey3 == NULL) {
-    MotorTaskKey3 = xTaskCreateStaticPinnedToCore(
-      Motor3Task, /* Function to implement the task */
-      "Motor3Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor3Stack, /* Stack handle. */
-      &Motor3TCB, /* TCB buffer */
-      1); /* Core where the task should run */
-  }
-  if(MotorTaskKey4 == NULL) {
-    MotorTaskKey4 = xTaskCreateStaticPinnedToCore(
-      Motor4Task, /* Function to implement the task */
-      "Motor4Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor4Stack, /* Stack handle. */
-      &Motor4TCB, /* TCB buffer */
-      1); /* Core where the task should run */
-  }
-  if(MotorTaskKey5 == NULL) {
-    MotorTaskKey5 = xTaskCreateStaticPinnedToCore(
-      Motor5Task, /* Function to implement the task */
-      "Motor5Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor5Stack, /* Stack handle. */
-      &Motor5TCB, /* TCB buffer */
-      1); /* Core where the task should run */
-  }
-  if(MotorTaskKey6 == NULL) {
-    MotorTaskKey6 = xTaskCreateStaticPinnedToCore(
-      Motor6Task, /* Function to implement the task */
-      "Motor6Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor6Stack, /* Stack handle. */
-      &Motor6TCB, /* TCB buffer */
-      1); /* Core where the task should run */
-  }
-  if(MotorTaskKey7 == NULL) {
-    MotorTaskKey7 = xTaskCreateStaticPinnedToCore(
-      Motor7Task, /* Function to implement the task */
-      "Motor7Task", /* Name of the task */
-      1024, /* stack allocated in words. 1024 words = 4096 bytes */
-      NULL, /* Task input parameter */
-      1, /* Priority of the task */
-      Motor7Stack, /* Stack handle. */
-      &Motor7TCB, /* TCB buffer */
-      1); /* Core where the task should run */
+      if (motorTaskHandles[i] != NULL) {
+        motorTaskActive[i] = true; // Mark this task slot as active
+      }
+    }
   }
 }
 
 void deleteMotorTasks(){
-  if (MotorTaskKey1 != NULL) {
-    vTaskDelete(MotorTaskKey1);
-    MotorTaskKey1 = NULL; // Clear handle after deletion
-  }
-  if (MotorTaskKey2 != NULL) {
-    vTaskDelete(MotorTaskKey2);
-    MotorTaskKey2 = NULL;
-  }
-  if (MotorTaskKey3 != NULL) {
-    vTaskDelete(MotorTaskKey3);
-    MotorTaskKey3 = NULL;
-  }
-  if (MotorTaskKey4 != NULL) {
-    vTaskDelete(MotorTaskKey4);
-    MotorTaskKey4 = NULL;
-  }
-  if (MotorTaskKey5 != NULL) {
-    vTaskDelete(MotorTaskKey5);
-    MotorTaskKey5 = NULL;
-  }
-  if (MotorTaskKey6 != NULL) {
-    vTaskDelete(MotorTaskKey6);
-    MotorTaskKey6 = NULL;
-  }
-  if (MotorTaskKey7 != NULL) {
-    vTaskDelete(MotorTaskKey7);
-    MotorTaskKey7 = NULL;
+  for (int i = 0; i < MAX_MOTORS; i++) {
+    if (motorTaskActive[i] && motorTaskHandles[i] != NULL) {
+      vTaskDelete(motorTaskHandles[i]);
+      motorTaskHandles[i] = NULL;       // Clear the active handle
+      motorTaskActive[i] = false;       // Mark handle as inactive
+    }
   }
 }

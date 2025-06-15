@@ -152,6 +152,14 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 </div>
             </div>
 
+<!-- Dynamic Testing Section! --> <!-- This section is for testing dynamic content addition --> <!-- -->
+            <div id="dynamicTest">
+                <p>Dynamic Testing</p>
+            </div>
+            <button onclick="addContent()">Add Content</button>
+
+<!-- End Dynamic Testing Section! -->
+
             <!-- Motors 1 though 7 GUI-->
             <div class="wrapper">
                 <div class="myDiv">
@@ -548,6 +556,25 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             else{
                 warningEllapseTime.style.display = "none"; // hide warning
             }
+        }
+        // Dynamic implemntation
+        function addContent() {
+            const mySection = document.getElementById("dynamicTest");
+
+            // Using template literals
+            const newContent = `
+                <div>
+                <p>New dynamically added content.</p>
+                <button onclick="removeContent()">Remove</button>
+                </div>
+            `;
+
+            mySection.innerHTML += newContent; // Append to existing content
+        }
+
+        function removeContent() {
+            const mySection = document.getElementById("dynamicTest");
+            mySection.innerHTML = "<p>Initial content</p>"; // Reset to initial state
         }
     </script>
 </html>
