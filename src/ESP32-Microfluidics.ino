@@ -24,7 +24,7 @@ const long gmtOffSetSec = 0;      // GMT Offset for EST (-5 hours * 3600 seconds
 const int daylightOffset_sec = 0;    // Daylight saving offset for EDT (+1 hour * 3600 seconds/hour)
 const char* time_zone_str = "UTC0";
 
-const int MAX_MOTORS = 6; //Max number of motor in use!
+int currentNumOfMotors = 0; //Max number of motor in use!
 const int MAX_PINS = 7; //Max number of GPIO pins available for motors.
 
 // GPIO pins vairables
@@ -33,10 +33,10 @@ const int motorPinPool[MAX_PINS] = {23, 22, 5, 4, 21, 19, 18};//possible pin ord
 
 // Motor state variables
 const int MRV = 90000; //max rotational velocity
-int motorTurnVelocityRaw[MAX_MOTORS+1] = {0}; //Raw is value from -MRV to MRV
-int motorTurnVelocity255[MAX_MOTORS+1] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
-int motorTime[MAX_MOTORS+1] = {0}; //Scheduled time for each motor
-bool checkBoxState[MAX_MOTORS+1] = {false}; //checkBoxState[0] never used
+int motorTurnVelocityRaw[MAX_PINS+1] = {0}; //Raw is value from -MRV to MRV
+int motorTurnVelocity255[MAX_PINS+1] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
+int motorTime[MAX_PINS] = {0}; //Scheduled time for each motor
+bool checkBoxState[MAX_PINS+1] = {false}; //checkBoxState[0] never used
 
 // Set web server object with port number
 WebServer server(80);
@@ -47,9 +47,9 @@ int scheduledMRVRaw = 0; //scheduled motor rotational velocity
 volatile uint64_t scheduledDateTimeStampUTCMS; //UTC local date and time in ms
 volatile uint64_t finalDelayMsToScheduledEvent; // Will store the calculated delay from now until the scheduled event.
 
-TaskHandle_t motorTaskHandles[MAX_MOTORS]; //task handle for motors
-StaticTask_t motorTaskTCBs[MAX_MOTORS]; //task control block for motors
-StackType_t motorTaskStacks[MAX_MOTORS][1024]; //stack for motors
+TaskHandle_t motorTaskHandles[MAX_PINS]; //task handle for motors
+StaticTask_t motorTaskTCBs[MAX_PINS]; //task control block for motors
+StackType_t motorTaskStacks[MAX_PINS][1024]; //stack for motors
 
 typedef struct {
   int motorId; //specific motor
@@ -57,20 +57,20 @@ typedef struct {
   long initialDelayMultiplier; //Schedluing delay multiplier
 } MotorTaskParams_t;
 
-MotorTaskParams_t motorTaskParams[MAX_MOTORS];
+MotorTaskParams_t motorTaskParams[MAX_PINS];
 
-bool motorTaskActive[MAX_MOTORS] = {false}; //current task status
+bool motorTaskActive[MAX_PINS] = {false}; //current task status
 
 void setup() {
   Serial.begin(115200); // set serial baud rate to 115200 
   
   //fill motorPins vector with motor pins
-  for ( int i = 0; i < MAX_MOTORS; i++) {
+  for ( int i = 0; i < currentNumOfMotors; i++) {
     motorPins.push_back(motorPinPool[i]); 
   }
 
   // Initialize and set GPIO
-  for(int i = 0; i < MAX_MOTORS; i++){
+  for(int i = 0; i < currentNumOfMotors; i++){
     pinMode(motorPins[i], OUTPUT); //set GPIO pins to output
     digitalWrite(motorPins[i], LOW); //set GPIO pins to low
   }
@@ -137,8 +137,8 @@ void setup() {
   server.on("/SET_MRV6", setMotor6);
   server.on("/SET_MRV7", setMotor7);
   //Run motors requests
-  server.on("/MANUAL_RUN", manualMotorsRun);
-  server.on("/SCHEDULE_RUN", scheduleMotorsRun); //run motors in scheduling mode
+  server.on("/MANUAL_RUN", HTTP_PUT, manualMotorsRun);
+  server.on("/SCHEDULE_RUN", HTTP_PUT, scheduleMotorsRun); //run motors in scheduling mode
   server.on("/KILL", killMotors);
   //Reset all data
   server.on("/RESET", reset); //reset all data
@@ -147,6 +147,8 @@ void setup() {
   server.on("/SCHEDULED_DATE_TIME", updateLocalDateTimeStampMS);
   server.on("/SCHEDULE_ELLAPSE_TIME", updateEllapseTime); 
   server.on("/SCHEDULE_MRVRaw", updateMRVRaw); 
+  //Dynamic Motors
+  server.on("/ADD_MOTORS", updateMotorCount); 
 
   //Start Server
   server.begin();
@@ -226,7 +228,7 @@ void checkBoxToggleOn( int num ){
 
 void setCheckboxesOn(){
   //Serial.println("set buttons on");
-  for( int i = 1; i <= MAX_MOTORS; i++){
+  for( int i = 1; i <= currentNumOfMotors; i++){
     checkBoxToggleOn(i); //toggle all checkboxes on
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -234,7 +236,7 @@ void setCheckboxesOn(){
 
 void setCheckboxesOff(){
   //Serial.println("set checkboxes off");
-  for( int i = 1; i <= MAX_MOTORS; i++){
+  for( int i = 1; i <= currentNumOfMotors; i++){
     setMotorNumRunKill(i, 0, true, true); //toggle all checkboxes off
     checkBoxToggleOff(i); //toggle all checkboxes off
   }
@@ -242,7 +244,7 @@ void setCheckboxesOff(){
 }
 
 void setMotors(){
-  for( int i = 1; i <= MAX_MOTORS; i++ ){
+  for( int i = 1; i <= currentNumOfMotors; i++ ){
     setMotorNumRunKill( i, motorTurnVelocityRaw[0] ); //set all motors to the same value
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -358,7 +360,7 @@ void setMotor7(){
 ////run motors in manual mode
 void manualMotorsRun(){
   Serial.printf("Manual Mode\n");
-  for( int i = 1; i < MAX_MOTORS+1; i++){
+  for( int i = 1; i <= currentNumOfMotors; i++){
     if( checkBoxState[i] == true ){
       setMotorNumRunKill(i, motorTurnVelocityRaw[i], true);
     }
@@ -376,7 +378,7 @@ void scheduleMotorsRun(){
   uint64_t current_unix_ms  = (tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
   finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
   
-  for( int i = 0; i < MAX_MOTORS; i++){
+  for( int i = 0; i < currentNumOfMotors; i++){
     if(motorTaskActive[i] && checkBoxState[i+1])
       xTaskNotifyGive(motorTaskHandles[i]); //Run all scheduled motors
   }
@@ -386,7 +388,7 @@ void scheduleMotorsRun(){
 // kills all motors.
 void killMotors(){
   deleteMotorTasks(); //delete all tasks
-  for( int i = 1; i <= MAX_MOTORS; i++){
+  for( int i = 1; i <= currentNumOfMotors; i++){
     setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
   }
   setupMotorTasks(); //recreate all tasks
@@ -396,7 +398,7 @@ void killMotors(){
 //reset all data
 void reset(){
   String viewNav = server.arg("plain"); //plain means send raw data (viewState)
-  for( int i = 1; i <= MAX_MOTORS; i++){
+  for( int i = 1; i <= currentNumOfMotors; i++){
     setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
     setMotorNumRunKill(i, 0); //setting motors to 0 (check this migh be redundant)
   }
@@ -452,11 +454,11 @@ void updateMRVRaw(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-// This function will initially create all MAX_MOTORS tasks.
+// This function will initially create all currentNumOfMotors tasks.
 // later refine it to only create tasks of motors that are 'added' by the user.
 // For now, it makes sure all potential tasks are set up at boot.
 void setupMotorTasks() {
-  for (int i = 0; i < MAX_MOTORS; i++) {
+  for (int i = 0; i < currentNumOfMotors; i++) {
     // Check if the task for this slot is not already created
     if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
       // Initialize motor-specific parameters for this task
@@ -483,11 +485,42 @@ void setupMotorTasks() {
 }
 
 void deleteMotorTasks(){
-  for (int i = 0; i < MAX_MOTORS; i++) {
+  for (int i = 0; i < currentNumOfMotors; i++) {
     if (motorTaskActive[i] && motorTaskHandles[i] != NULL) {
       vTaskDelete(motorTaskHandles[i]);
       motorTaskHandles[i] = NULL;       // Clear the active handle
       motorTaskActive[i] = false;       // Mark handle as inactive
     }
+  }
+}
+
+void updateMotorCount() {
+  int desiredNumOfMotors = server.arg("VALUE").toInt(); // Get the number of motors from the request
+  int motorChange = currentNumOfMotors - desiredNumOfMotors;
+
+  if( motorChange > 0 ) { //removing motors
+    for( int i = currentNumOfMotors; i > desiredNumOfMotors; i--){
+      setMotorNumRunKill(i, 0, true, true); //kill motor if it was on
+    }
+  } else { // adding motors
+  }
+
+  currentNumOfMotors = desiredNumOfMotors; // Update the current number of motors
+  updateMotorPins(currentNumOfMotors); // Update the motor count in the system
+  server.send(200, "text/plain", ""); //Send web page ok
+}
+
+// dynamicall update pin vector using pin pool
+void updateMotorPins(int newMotorCount) {
+
+  motorPins.clear(); // Clear the existing vector
+  for (int i = 0; i < newMotorCount; i++) {
+    motorPins.push_back(motorPinPool[i]); // Fill with available pins from the pool
+  }
+
+  // Reinitialize the GPIO pins for the new motor count
+  for (int i = 0; i < newMotorCount; i++) {
+    pinMode(motorPins[i], OUTPUT); // Set GPIO pins to output
+    digitalWrite(motorPins[i], LOW); // Set GPIO pins to low
   }
 }

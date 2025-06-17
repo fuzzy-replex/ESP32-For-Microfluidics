@@ -153,43 +153,15 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             </div>
 
 <!-- Dynamic Testing Section! --> <!-- This section is for testing dynamic content addition --> <!-- -->
-            <div id="dynamicTest">
-                <p>Dynamic Testing</p>
-            </div>
-            <button onclick="addContent()">Add Content</button>
-
+            
+            <input type="number" min="0" max="30" value="0" id="numMotors" onchange="addMotors(this.value)">Change Num Motors</input>
+            <button onclick="addMotor()">Add Motors</button>
+            <button onclick="removeMotor()">Remove Motors</button>
 <!-- End Dynamic Testing Section! -->
 
             <!-- Motors 1 though 7 GUI-->
-            <div class="wrapper">
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox1" onchange="togglecheckbox1(this.checked)"> Motor 1</p><!-- -->
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity1" onchange="updateMRV1(this.value)"></p>
-                </div>
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox2" onchange="togglecheckbox2(this.checked)"> Motor 2</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity2" onchange="updateMRV2(this.value)"></p>
-                </div>
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox3" onchange="togglecheckbox3(this.checked)"> Motor 3</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity3" onchange="updateMRV3(this.value)"></p>
-                </div>
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox4" onchange="togglecheckbox4(this.checked)"> Motor 4</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity4" onchange="updateMRV4(this.value)"></p>
-                </div>
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox5" onchange="togglecheckbox5(this.checked)"> Motor 5</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity5" onchange="updateMRV5(this.value)"></p>
-                </div>
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox6" onchange="togglecheckbox6(this.checked)"> Motor 6</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity6" onchange="updateMRV6(this.value)"></p>
-                </div>
-                <div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox7" onchange="togglecheckbox7(this.checked)"> Motor 7</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity7" onchange="updateMRV7(this.value)"></p>
-                </div>                                                                                          <!-- -->
+            <div class="wrapper" id="motorControls">
+                <!-- dynamically allocated using js -->
             </div>
 
             <!-- run and kill buttons moved outside of page div sections -->
@@ -253,19 +225,17 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
     <!-- JAVA SCRIPT SECTION -->
     <script type="text/javascript">
         let currentView = "Manual Mode"; // Track current view
+        var motorCount = 0; // Track number of motors added dynamically
         
         //microfluidics webdisplay functions
         function setAllMotors(){
-            //Modify variables in main script to reflect html changes
-            MRVRaw = document.getElementById("MotorRotationalVelocityAll").value;
-            document.getElementById("MotorRotationalVelocity1").value = MRVRaw;
-            document.getElementById("MotorRotationalVelocity2").value = MRVRaw;
-            document.getElementById("MotorRotationalVelocity3").value = MRVRaw;
-            document.getElementById("MotorRotationalVelocity4").value = MRVRaw;
-            document.getElementById("MotorRotationalVelocity5").value = MRVRaw;
-            document.getElementById("MotorRotationalVelocity6").value = MRVRaw;
-            document.getElementById("MotorRotationalVelocity7").value = MRVRaw;
+           const MRVRaw = document.getElementById("MotorRotationalVelocityAll").value;
+            const motorInputs = document.querySelectorAll('[id^="MotorRotationalVelocity"]');
 
+            motorInputs.forEach(input => {
+                input.value = MRVRaw;
+            });
+            
             //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
             xhttp.open("PUT", "SET_ALL_MOTORS", false); //this false means synchronous
@@ -285,14 +255,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
     
         function setCheckboxesOn(){
-            //Modify html values using IDs
-            document.getElementById("checkbox1").checked = true;
-            document.getElementById("checkbox2").checked = true;
-            document.getElementById("checkbox3").checked = true;
-            document.getElementById("checkbox4").checked = true;
-            document.getElementById("checkbox5").checked = true;
-            document.getElementById("checkbox6").checked = true;
-            document.getElementById("checkbox7").checked = true;
+            const checkboxes = document.querySelectorAll('[id^="checkbox"]');
+    
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+            });
 
             //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
@@ -301,14 +268,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         function setCheckboxesOff(){
-            //Modify html values using IDs
-            document.getElementById("checkbox1").checked = false;
-            document.getElementById("checkbox2").checked = false;
-            document.getElementById("checkbox3").checked = false;
-            document.getElementById("checkbox4").checked = false;
-            document.getElementById("checkbox5").checked = false;
-            document.getElementById("checkbox6").checked = false;
-            document.getElementById("checkbox7").checked = false;
+            const checkboxes = document.querySelectorAll('[id^="checkbox"]');
+    
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
             
             //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
@@ -317,59 +281,17 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
         //<toggle checkboxes>
-        function togglecheckbox1( checkState ){
-            document.getElementById("checkbox1").checked = checkState;
+        function toggleCheckbox(checkboxElem) {
+            const id = checkboxElem.id; // e.g. "checkbox3"
+            const checkState = checkboxElem.checked;
 
+            // Build the URL dynamically based on checkbox id
+            // e.g. "SET_CHECKBOX3?STATE=true"
+            const url = `SET_${id.toUpperCase()}?STATE=${checkState}`;
+
+            // Use XMLHttpRequest synchronously (like your original code)
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX1?STATE="+checkState, false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function togglecheckbox2( checkState ){
-            document.getElementById("checkbox2").checked = checkState;
-
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX2?STATE="+checkState, false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function togglecheckbox3( checkState ){
-            document.getElementById("checkbox3").checked = checkState;
-
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX3?STATE="+checkState, false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function togglecheckbox4( checkState ){
-            document.getElementById("checkbox4").checked = checkState;
-
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX4?STATE="+checkState, false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function togglecheckbox5( checkState ){
-            document.getElementById("checkbox5").checked = checkState;
-
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX5?STATE="+checkState, false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function togglecheckbox6( checkState ){
-            document.getElementById("checkbox6").checked = checkState;
-
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX6?STATE="+checkState, false); //this false means synchronous
-            xhttp.send();
-        }
-
-        function togglecheckbox7( checkState ){
-            document.getElementById("checkbox7").checked = checkState;
-
-            var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOX7?STATE="+checkState, false); //this false means synchronous
+            xhttp.open("PUT", url, false);  // synchronous request (deprecated but matches your style)
             xhttp.send();
         }
         //</toggle checkboxes>
@@ -441,7 +363,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         function run(){
             var xhttp = new XMLHttpRequest();
             if(currentView === "Manual Mode"){
-                xhttp.open("PUT", "MANUAL_RUN", false); //this false means synchronous
+                xhttp.open("PUT", "MANUAL_RUN", true); //this false means synchronous
             }
             else if(currentView === "Scheduling Mode"){
                 const totalEllapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitchingHours").value) * 3600 +
@@ -474,7 +396,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 // update 
                 updateScheduleOnHost(ellapseTimeMS, scheduledMRV, scheduledDateTimeStamp);
 
-                xhttp.open("PUT", "SCHEDULE_RUN", false); //this false means synchronous
+                xhttp.open("PUT", "SCHEDULE_RUN", true); //this false means synchronous
             }
             xhttp.send();
         }
@@ -558,23 +480,42 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             }
         }
         // Dynamic implemntation
-        function addContent() {
-            const mySection = document.getElementById("dynamicTest");
-
-            // Using template literals
-            const newContent = `
-                <div>
-                <p>New dynamically added content.</p>
-                <button onclick="removeContent()">Remove</button>
-                </div>
-            `;
-
-            mySection.innerHTML += newContent; // Append to existing content
+        function addMotors( desiredMotorCount ) {
+            while (motorCount < desiredMotorCount) {
+                addMotor();
+            }
+            while (motorCount > desiredMotorCount) {
+                removeMotor();
+            }
         }
 
-        function removeContent() {
-            const mySection = document.getElementById("dynamicTest");
-            mySection.innerHTML = "<p>Initial content</p>"; // Reset to initial state
+        function addMotor(){
+            var xhttp = new XMLHttpRequest();
+
+            const mySection = document.getElementById("motorControls");
+            motorCount++; // Current Added Motor Count
+            const newContent = `<div class="myDiv">
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox${motorCount}" onchange="togglecheckbox(this)"> Motor ${motorCount}</p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity${motorCount}" onchange="updateMRV${motorCount}(this.value)"></p>
+                </div>`;
+            mySection.insertAdjacentHTML('beforeend', newContent); // Add new motor content
+        
+            xhttp.open("PUT", "ADD_MOTORS?VALUE="+motorCount, true); //this false means synchronous
+            xhttp.send();
+        }
+
+        function removeMotor(){
+            var xhttp = new XMLHttpRequest();
+
+            const mySection = document.getElementById("motorControls");
+                //turn last child off before removing it!
+            if (mySection.children.length > 0) {
+                mySection.removeChild(mySection.lastChild); // Remove the last motor
+            
+                motorCount--; // Get current count of motors
+                xhttp.open("PUT", "ADD_MOTORS?VALUE="+motorCount, true); //this false means synchronous
+                xhttp.send();
+            }
         }
     </script>
 </html>
