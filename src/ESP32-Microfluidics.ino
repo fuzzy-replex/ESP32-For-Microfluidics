@@ -121,13 +121,14 @@ void setup() {
   server.on("/SET_CHECKBOXES_ON", setCheckboxesOn);
   server.on("/SET_CHECKBOXES_OFF", setCheckboxesOff);
   //Modify motors checkboxs individually requests
-  server.on("/SET_CHECKBOX1", checkBox1Toggle);
-  server.on("/SET_CHECKBOX2", checkBox2Toggle);
-  server.on("/SET_CHECKBOX3", checkBox3Toggle);
-  server.on("/SET_CHECKBOX4", checkBox4Toggle);
-  server.on("/SET_CHECKBOX5", checkBox5Toggle);
-  server.on("/SET_CHECKBOX6", checkBox6Toggle);
-  server.on("/SET_CHECKBOX7", checkBox7Toggle);
+  server.on("/TOGGLE_CHECKBOX", toggleCheckbox); //toggle checkbox on or off
+  //server.on("/SET_CHECKBOX1", checkBox1Toggle);
+  //server.on("/SET_CHECKBOX2", checkBox2Toggle);
+  //server.on("/SET_CHECKBOX3", checkBox3Toggle);
+  //server.on("/SET_CHECKBOX4", checkBox4Toggle);
+  //server.on("/SET_CHECKBOX5", checkBox5Toggle);
+  //server.on("/SET_CHECKBOX6", checkBox6Toggle);
+  //server.on("/SET_CHECKBOX7", checkBox7Toggle);
   //Modify motors velocity requests
   server.on("/SET_MRV1", setMotor1);
   server.on("/SET_MRV2", setMotor2);
@@ -250,60 +251,16 @@ void setMotors(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-//checkbox invidual toggles (Can condense these into one function will implement soon).
-void checkBox1Toggle(){
+//checkbox individual toggles
+void toggleCheckbox(){
+  int num = server.arg("MOTORNUM").toInt(); //get the checkbox number from the request
   bool checkState = (server.arg("STATE") == "true"); //checkState saves boolean equivalance outcome.
-  checkBoxState[1] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(1, 0, true, true); //kill motor if it was on
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void checkBox2Toggle(){
-  bool checkState = (server.arg("STATE") == "true");
-  checkBoxState[2] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(2, 0, true, true); //kill motor if it was on
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void checkBox3Toggle(){
-  bool checkState = (server.arg("STATE") == "true");
-  checkBoxState[3] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(3, 0, true, true); //kill motor if it was on
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void checkBox4Toggle(){
-  bool checkState = (server.arg("STATE") == "true");
-  checkBoxState[4] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(4, 0, true, true); //kill motor if it was on
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void checkBox5Toggle(){
-  bool checkState = (server.arg("STATE") == "true");
-  checkBoxState[5] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(5, 0, true, true); //kill motor if it was on
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void checkBox6Toggle(){
-  bool checkState = (server.arg("STATE") == "true");
-  checkBoxState[6] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(6, 0, true, true); //kill motor if it was on
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void checkBox7Toggle(){
-  bool checkState = (server.arg("STATE") == "true");
-  checkBoxState[7] = checkState;
-  if(checkState == false)
-    setMotorNumRunKill(7, 0, true, true); //kill motor if it was on
+  
+  checkBoxState[num] = checkState; //update checkbox state
+  if(checkState == false){
+    setMotorNumRunKill(num, 0, true, true); //kill motor if it was on
+  }
+  
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
@@ -406,6 +363,9 @@ void reset(){
     setCheckboxesOn(); //turn On all checkboxes in background of Scheduling view
     //!check later becuase setting checkbox in background might not be nessasary
   }
+  else if(viewNav == "Manual Mode"){
+    setCheckboxesOff(); //turn Off all checkboxes in background of Manual view
+  }
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
@@ -494,15 +454,24 @@ void deleteMotorTasks(){
   }
 }
 
+void resetMotor(int motornum){
+  checkBoxToggleOff(motornum); //toggle checkbox off
+  setMotorNumRunKill(motornum, 0, true, false); //set motor to 0)
+}
+
 void updateMotorCount() {
   int desiredNumOfMotors = server.arg("VALUE").toInt(); // Get the number of motors from the request
   int motorChange = currentNumOfMotors - desiredNumOfMotors;
 
   if( motorChange > 0 ) { //removing motors
     for( int i = currentNumOfMotors; i > desiredNumOfMotors; i--){
+      resetMotor(i); //reset motor
       setMotorNumRunKill(i, 0, true, true); //kill motor if it was on
     }
   } else { // adding motors
+    for( int i = currentNumOfMotors + 1; i < desiredNumOfMotors; i++){
+      resetMotor(i); //reset motor if on
+    }
   }
 
   currentNumOfMotors = desiredNumOfMotors; // Update the current number of motors
@@ -510,7 +479,7 @@ void updateMotorCount() {
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-// dynamicall update pin vector using pin pool
+// resets motor pins to match dynamic motor count. This function turns all motors of when the count is changed.
 void updateMotorPins(int newMotorCount) {
 
   motorPins.clear(); // Clear the existing vector

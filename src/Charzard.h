@@ -282,12 +282,12 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         //<toggle checkboxes>
         function toggleCheckbox(checkboxElem) {
-            const id = checkboxElem.id; // e.g. "checkbox3"
-            const checkState = checkboxElem.checked;
+            const strid = checkboxElem.id; // e.g. "checkbox3"
+            const motorNum = strid.replace("checkbox", ""); // Extract motor number from checkbox id
+            const isChecked = checkboxElem.checked;
 
             // Build the URL dynamically based on checkbox id
-            // e.g. "SET_CHECKBOX3?STATE=true"
-            const url = `SET_${id.toUpperCase()}?STATE=${checkState}`;
+            const url = `TOGGLE_CHECKBOX?MOTORNUM=${motorNum}&STATE=${isChecked}`;
 
             // Use XMLHttpRequest synchronously (like your original code)
             var xhttp = new XMLHttpRequest();
@@ -439,11 +439,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             var xhttp = new XMLHttpRequest();
             // Reset all motor velocities (1 through 7) and the "All" field
             document.getElementById("MotorRotationalVelocityAll").value = 0;
-            for (let i = 1; i <= 7; i++) {
+            for (let i = 1; i <= motorCount; i++) {
                 document.getElementById("MotorRotationalVelocity" + i).value = 0;
             }
             // Reset checkboxes (1 through 7)
-            for (let i = 1; i <= 7; i++) {
+            for (let i = 1; i <= motorCount; i++) {
                 document.getElementById("checkbox" + i).checked = false;
             }
             xhttp.open("PUT", "RESET", false); //this false means synchronous
@@ -495,7 +495,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             const mySection = document.getElementById("motorControls");
             motorCount++; // Current Added Motor Count
             const newContent = `<div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox${motorCount}" onchange="togglecheckbox(this)"> Motor ${motorCount}</p>
+                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}</p>
                     <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity${motorCount}" onchange="updateMRV${motorCount}(this.value)"></p>
                 </div>`;
             mySection.insertAdjacentHTML('beforeend', newContent); // Add new motor content
@@ -517,6 +517,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 xhttp.send();
             }
         }
+
     </script>
 </html>
 )rawliteral";
