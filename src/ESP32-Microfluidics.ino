@@ -122,14 +122,8 @@ void setup() {
   server.on("/SET_CHECKBOXES_OFF", setCheckboxesOff);
   //Modify motors checkboxs individually requests
   server.on("/TOGGLE_CHECKBOX", toggleCheckbox); //toggle checkbox on or off
-  //server.on("/SET_CHECKBOX1", checkBox1Toggle);
-  //server.on("/SET_CHECKBOX2", checkBox2Toggle);
-  //server.on("/SET_CHECKBOX3", checkBox3Toggle);
-  //server.on("/SET_CHECKBOX4", checkBox4Toggle);
-  //server.on("/SET_CHECKBOX5", checkBox5Toggle);
-  //server.on("/SET_CHECKBOX6", checkBox6Toggle);
-  //server.on("/SET_CHECKBOX7", checkBox7Toggle);
   //Modify motors velocity requests
+  server.on("/SET_MRV", setMotorNum); //set a motors to a specific value
   server.on("/SET_MRV1", setMotor1);
   server.on("/SET_MRV2", setMotor2);
   server.on("/SET_MRV3", setMotor3);
@@ -265,6 +259,13 @@ void toggleCheckbox(){
 }
 
 //motors individual velocity setters
+void setMotorNum(){
+  int motorNum = server.arg("MOTORNUM").toInt(); //get the motor number from the request
+  int MRVRaw = server.arg("VALUE").toInt(); //return string of js int
+  setMotorNumRunKill(motorNum, MRVRaw);
+  server.send(200, "text/plain", ""); //Send web page ok
+}
+
 void setMotor0(){
   int MRVRaw = server.arg("VALUE").toInt(); //return string of js int
   setMotorNumRunKill(0, MRVRaw);

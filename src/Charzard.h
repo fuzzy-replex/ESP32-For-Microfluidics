@@ -296,6 +296,22 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
         //</toggle checkboxes>
         //<update MRV>
+        function updateMRV(inputElem) {
+            const strid = inputElem.id; // e.g. "MotorRotationalVelocity3"
+            const motorNum = strid.replace("MotorRotationalVelocity", ""); // Extract motor number from input id
+            let MRVRaw = inputElem.value;
+            MRVRaw = rangeRestrictionMVR(MRVRaw); // Ensure MRVRaw is within the specified range
+            document.getElementById(strid).value = MRVRaw; // Update the input value
+
+            // Build the URL dynamically based on input id
+            const url = `SET_MRV?MOTORNUM=${motorNum}&VALUE=${MRVRaw}`;
+
+            // Use XMLHttpRequest synchronously (like your original code)
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("PUT", url, false);  // synchronous request (deprecated but matches your style)
+            xhttp.send();
+        }
+        
         function updateMRV1( MRVRaw ){
             MRVRaw = rangeRestrictionMVR(MRVRaw)
             document.getElementById("MotorRotationalVelocity1").value = MRVRaw;
@@ -496,10 +512,12 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             motorCount++; // Current Added Motor Count
             const newContent = `<div class="myDiv">
                     <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity${motorCount}" onchange="updateMRV${motorCount}(this.value)"></p>
+                    <p><input type="number" min="-90000" max="90000" value="0" id="MotorRotationalVelocity${motorCount}" onchange="updateMRV(this)"></p>
                 </div>`;
             mySection.insertAdjacentHTML('beforeend', newContent); // Add new motor content
         
+            document.getElementById("numMotors").value = motorCount;
+
             xhttp.open("PUT", "ADD_MOTORS?VALUE="+motorCount, true); //this false means synchronous
             xhttp.send();
         }
@@ -516,6 +534,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 xhttp.open("PUT", "ADD_MOTORS?VALUE="+motorCount, true); //this false means synchronous
                 xhttp.send();
             }
+
+            document.getElementById("numMotors").value = motorCount;
+
         }
 
     </script>
