@@ -28,7 +28,7 @@ int currentNumOfMotors = 0; //Max number of motor in use!
 const int MAX_PINS = 7; //Max number of GPIO pins available for motors.
 
 // GPIO pins vairables
-std::vector<int> motorPins;
+std::vector<int> motorPins; //FIX!!! Don't USE 5!
 const int motorPinPool[MAX_PINS] = {23, 22, 5, 4, 21, 19, 18};//possible pin order
 
 // Motor state variables
@@ -42,7 +42,7 @@ bool checkBoxState[MAX_PINS+1] = {false}; //checkBoxState[0] never used
 WebServer server(80);
 
 // Global Scheduling variables
-volatile uint32_t ellapseMotorSwappingTimeMS; //time in ms
+volatile uint32_t ellapseMotorTimeMS; //time in ms
 int scheduledMRVRaw = 0; //scheduled motor rotational velocity
 volatile uint64_t scheduledDateTimeStampUTCMS; //UTC local date and time in ms
 volatile uint64_t finalDelayMsToScheduledEvent; // Will store the calculated delay from now until the scheduled event.
@@ -53,8 +53,6 @@ StackType_t motorTaskStacks[MAX_PINS][1024]; //stack for motors
 
 typedef struct {
   int motorId; //specific motor
-  int gpioPin; //gpio for motor
-  long initialDelayMultiplier; //Schedluing delay multiplier
 } MotorTaskParams_t;
 
 MotorTaskParams_t motorTaskParams[MAX_PINS];
@@ -329,16 +327,17 @@ void manualMotorsRun(){
 ////run motors in schedule mode
 void scheduleMotorsRun(){
   Serial.printf("Scheduling Mode\n");
-
+  
   // schedule calculations outside of tasks
   struct timeval tv_now;
   gettimeofday(&tv_now, NULL); // Get the current time
-  uint64_t current_unix_ms  = (tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
-  finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
+  uint64_t current_unix_ms  = ((uint64_t)tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
   
+  finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
+
   for( int i = 0; i < currentNumOfMotors; i++){
     if(motorTaskActive[i] && checkBoxState[i+1])
-      xTaskNotifyGive(motorTaskHandles[i]); //Run all scheduled motors
+      xTaskNotifyGive(motorTaskHandles[i]); //launch motor X tasks to handle time.
   }
   server.send(200, "text/plain", ""); //Send web page ok
 }
@@ -373,8 +372,6 @@ void reset(){
 void MotorControlTask(void *pvParameters) {
   MotorTaskParams_t *params = (MotorTaskParams_t *)pvParameters;
   int motorId = params->motorId;
-  int gpioPin = params->gpioPin;
-  long initialDelayOffset = params->initialDelayMultiplier;
 
   while (true) {
     // Wait indefinitely until this task receives a notification to run
@@ -382,18 +379,13 @@ void MotorControlTask(void *pvParameters) {
 
     // These are global scheduling variables, so they apply to all notified tasks.
     TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
-    TickType_t motorStaggerDelay_DT = pdMS_TO_TICKS(ellapseMotorSwappingTimeMS * initialDelayOffset);
-    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorSwappingTimeMS);
-
-    // Delay until the common scheduled start time
-    vTaskDelay(timeUntilScheduledEvent_DT);
-
-    // Apply the individual motor's staggered delay
-    vTaskDelay(motorStaggerDelay_DT);
+    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS);
+    // Delay until the scheduled Datetime start time
+    vTaskDelay(timeUntilScheduledEvent_DT); //delay in cpu ticks
 
     if (checkBoxState[motorId]) {
         // need to pass motorparam to test gpio in setMotorNumRunKill dynamically
-        setMotorNumRunKill(motorId, scheduledMRVRaw, true, false); // Turn motor ON
+        setMotorNumRunKill(motorId, motorTurnVelocityRaw[motorId], true, false); // Turn motor ON
         vTaskDelay(motorRunDuration_DT); // Run for the specified duration
         setMotorNumRunKill(motorId, 0, false, true); // Turn motor OFF
     }
@@ -402,12 +394,12 @@ void MotorControlTask(void *pvParameters) {
 
 //update scheduling variables
 void updateLocalDateTimeStampMS(){
-  String valueStr = server.arg("VALUE");
-  scheduledDateTimeStampUTCMS = strtoull(valueStr.c_str(), NULL, 10); //convert string to unsigned long long
+  String scheduledDateTimeStampMS_str = server.arg("VALUE");
+  scheduledDateTimeStampUTCMS = strtoull(scheduledDateTimeStampMS_str.c_str(), NULL, 10); //convert string to unsigned long long
   server.send(200, "text/plain", ""); //Send web page ok
 }
 void updateEllapseTime(){
-  ellapseMotorSwappingTimeMS = server.arg("VALUE").toInt();
+  ellapseMotorTimeMS = server.arg("VALUE").toInt();
   server.send(200, "text/plain", ""); //Send web page ok
 }
 void updateMRVRaw(){
@@ -423,10 +415,8 @@ void setupMotorTasks() {
     // Check if the task for this slot is not already created
     if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
       // Initialize motor-specific parameters for this task
-      motorTaskParams[i].motorId = i + 1; // Motor IDs typically start from 1
-      motorTaskParams[i].gpioPin = motorPins[i]; // Map to corresponding GPIO pin
-      motorTaskParams[i].initialDelayMultiplier = i; // Motor 1 has 0 delay, Motor 2 has 1x delay, etc.
-
+      motorTaskParams[i].motorId = i + 1; // Motor IDs starting from 1
+      
       motorTaskHandles[i] = xTaskCreateStaticPinnedToCore(
         MotorControlTask,                             /* Function to implement the task */
         ("Motor" + String(i + 1) + "Task").c_str(), /* Name of the task (e.g., "Motor1Task") */
@@ -477,6 +467,9 @@ void updateMotorCount() {
 
   currentNumOfMotors = desiredNumOfMotors; // Update the current number of motors
   updateMotorPins(currentNumOfMotors); // Update the motor count in the system
+  
+  setupMotorTasks();
+
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
