@@ -327,14 +327,13 @@ void manualMotorsRun(){
 ////run motors in schedule mode
 void scheduleMotorsRun(){
   Serial.printf("Scheduling Mode\n");
-  
+
   // schedule calculations outside of tasks
   struct timeval tv_now;
   gettimeofday(&tv_now, NULL); // Get the current time
-  uint64_t current_unix_ms  = ((uint64_t)tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
-  
+  uint64_t current_unix_ms  = (tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
   finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
-
+  
   for( int i = 0; i < currentNumOfMotors; i++){
     if(motorTaskActive[i] && checkBoxState[i+1])
       xTaskNotifyGive(motorTaskHandles[i]); //launch motor X tasks to handle time.
@@ -380,6 +379,7 @@ void MotorControlTask(void *pvParameters) {
     // These are global scheduling variables, so they apply to all notified tasks.
     TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
     TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS);
+
     // Delay until the scheduled Datetime start time
     vTaskDelay(timeUntilScheduledEvent_DT); //delay in cpu ticks
 
@@ -416,7 +416,7 @@ void setupMotorTasks() {
     if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
       // Initialize motor-specific parameters for this task
       motorTaskParams[i].motorId = i + 1; // Motor IDs starting from 1
-      
+
       motorTaskHandles[i] = xTaskCreateStaticPinnedToCore(
         MotorControlTask,                             /* Function to implement the task */
         ("Motor" + String(i + 1) + "Task").c_str(), /* Name of the task (e.g., "Motor1Task") */
@@ -467,9 +467,6 @@ void updateMotorCount() {
 
   currentNumOfMotors = desiredNumOfMotors; // Update the current number of motors
   updateMotorPins(currentNumOfMotors); // Update the motor count in the system
-  
-  setupMotorTasks();
-
   server.send(200, "text/plain", ""); //Send web page ok
 }
 

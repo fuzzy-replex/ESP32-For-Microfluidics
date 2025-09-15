@@ -97,7 +97,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         th.datetime-col, td.datetime-col {
             width: 170px;
         }
-        th.velocity-col, td.velocity-col {
+        th.motor-col, td.motor-col {
             min-width: 100px;
             max-width: 420px;
             width: auto;
@@ -129,8 +129,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             <span 
                 class="topnavTitle">Microfluidics Pump Controller
             </span>
-            <div> <!-- Dynamically change motor num numbox -->
-                <input type="number" min="0" max="30" value="0" id="numMotors" onchange="addMotors(this.value)">Change Num Motors</input>
+            <div style="align-items: center; justify-content: center;"> <!-- Dynamically change motor num numbox -->
+                <label for="numMotors" style="color: white;">Number of Motors:</label>
+                <input type="number" min="0" max="30" value="0" id="numMotors" onchange="addMotors(this.value)"></input>
             </div>
             <div class="nav-links">
                 <a href="javascript:void(0)" onclick="showView('Manual Mode')">Manual Mode</a>
@@ -157,15 +158,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 </div>
             </div>
 
-<!-- Dynamic Testing Section! --> <!-- This section is for testing dynamic content addition --> <!-- -->
-            
-            <button onclick="addMotor()">Add Motors</button>
-            <button onclick="removeMotor()">Remove Motors</button>
-<!-- End Dynamic Testing Section! -->
-
             <!-- Motors 1 though 7 GUI-->
             <div class="wrapper" id="motorControlsManual">
-                <!-- dynamically allocated using js -->
+                <!-- dynamically allocated using js HERE using topnav-->
             </div>
 
             <!-- run and kill buttons moved outside of page div sections -->
@@ -182,7 +177,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                         class="datetime-col">DateTime
                     </th>
 
-                    <th class="velocity-col">
+                    <th class="motor-col">
                         <div>
                             MRV <small><small></small>(<sup>&mu;_steps</sup>&frasl;<sub>sec</sub><small></small>)
                         </div>
@@ -193,33 +188,42 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
                     <th>
                         <div class="ellapse-col crumpleByWord">
-                            Elapsed Time
+                            Elapse Time
                         </div>
                         <div style="font-size: 0.6em;">
                             (Motor on durration)
                         </div>
                     </th>
                 </tr>
-                <!-- Datetime Row -->
+                <!-- Time Specs -->
                 <tr>
                     <td class="datetime-col">
                         <input id="dateTime" type="datetime-local" style="width: 170px;">
                     </td>
-                    <td class="velocity-col">
-                        <!-- Motors 1 though 7 GUI-->
-                        <div class="wrapper" id="motorControlsSchedule">
-                            <!-- dynamically allocated using js -->
+                    <td class="motor-col">
+                        <div id="motorSubGroups_0">
+                            <!-- SubGroup 0 -->
+                            <div class="motor-subgroup" id="motorGroup_0_0" style="margin-bottom: 10px;">
+                                <div class="wrapper">
+                                    <!-- dynamically allocated using js HERE using topnav-->
+                                </div>
+                            </div>
                         </div>
+                        <!-- JS dynamically adds Subgroups -->
                     </td>
                     <td class="ellapse-col">
-                        <div style="display: flex; align-items: center; justify-content: center;">
-                            <input style="width:40px;" id="ellapseTimeMotorSwitchingHours" type="number" value="0" min="0" onchange="checkEllapseTime()"> hrs&nbsp;:&nbsp;
-                            <input style="width:40px;" id="ellapseTimeMotorSwitchingMinutes" type="number" value="0" min="0" onchange="checkEllapseTime()"> mins&nbsp;:&nbsp;
-                            <input style="width:40px;" id="ellapseTimeMotorSwitchingSeconds" type="number" value="0" min="0" onchange="checkEllapseTime()"> secs
+                        <div id="ellapseSubGroups_0">
+                            <!-- SubGroup 0 -->
+                            <div class="ellapse-subgroup" id="ellapseGroup_0_0" style="margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; justify-content: center;">
+                                    <input id="ellapseGroup_0_0_hrs" style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
+                                    <input id="ellapseGroup_0_0_mins" style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
+                                    <input id="ellapseGroup_0_0_secs" style="width:40px;" type="number" value="0" min="0"> secs
+                                </div>
+                            </div>
                         </div>
-                        <div id="ellapseTimeWarning" style="color: orange; display: none; font-size: 0.8em;">
-                            Range (0,inf).
-                        </div>
+                        <button onclick="addMotorGroup(0)">+ Add Elapse Field</button>
+                    <div style="color: orange; font-size: 0.8em;">Range (0,inf).</div>
                     </td>
                     <!-- Dynamically Add new Motor Modify and ElapseTime -->
                     <!-- End Dynamically Add new Motor Modify and ElapseTime -->
@@ -249,9 +253,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 input.value = MRVRaw;
             });
             
-            //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_ALL_MOTORS", false); //this false means synchronous
+            xhttp.open("PUT", "SET_ALL_MOTORS", false); //synchronous
             xhttp.send();
         }
 
@@ -276,7 +279,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
             //create XMLHttpRequest object to send data to the server
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "SET_CHECKBOXES_ON", false); //this false means synchronous
+            xhttp.open("PUT", "SET_CHECKBOXES_ON", false); //synchronous
             xhttp.send();
         }
 
@@ -295,33 +298,34 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         //<toggle checkboxes>
         function toggleCheckbox(checkboxElem) {
-            const strid = checkboxElem.id.match(/\d+$/); // grab digits from checkbox id, e.g. "checkbox3" -> ["3"]
-            const motorNum = strid[0]; // use the first and only match
+            const strid = checkboxElem.id.match(/\d+_\d+_\d+/); // parse 2d dynamic array with checkbox state.
+                                            // DatetimeIndex_Subgroup_MotorNum
+            const [datetimeIndex, subgroupIndex, motorNum] = strid[0].split('_').map(Number);
             const isChecked = checkboxElem.checked;
 
             // Build the URL dynamically based on checkbox id
-            const url = `TOGGLE_CHECKBOX?MOTORNUM=${motorNum}&STATE=${isChecked}`;
+            const url = `TOGGLE_CHECKBOX?DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
 
             // Use XMLHttpRequest synchronously (like your original code)
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", url, false);  // synchronous request (deprecated but matches your style)
+            xhttp.open("PUT", url, false);  // synchronous request
             xhttp.send();
         }
         //</toggle checkboxes>
         //<update MRV>
         function updateMRV(inputElem) {
-            const strid = inputElem.id.match(/\d+$/); //str ends in a number
-            const motorNum = strid[0]; // use the first and only match
+            const strid = inputElem.id.match(/\d+_\d+_\d+/); // parse 2d dynamic array with checkbox state.
+                                            // DatetimeIndex_Subgroup_MotorNum
+            const [datetimeIndex, subgroupIndex, motorNum] = strid[0].split('_').map(Number);
             let MRVRaw = inputElem.value;
             MRVRaw = rangeRestrictionMVR(MRVRaw); // Ensure MRVRaw is within the specified range
             document.getElementById(inputElem.id).value = MRVRaw; // Update the input value
 
             // Build the URL dynamically based on input id
-            const url = `SET_MRV?MOTORNUM=${motorNum}&VALUE=${MRVRaw}`;
+            const url = `SET_MRV?DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&VALUE=${MRVRaw}`;
 
-            // Use XMLHttpRequest synchronously (like your original code)
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", url, false);  // synchronous request (deprecated but matches your style)
+            xhttp.open("PUT", url, false);  // synchronous request
             xhttp.send();
         }
         
@@ -330,12 +334,12 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         function run(){
             var xhttp = new XMLHttpRequest();
             if(currentView === "Manual Mode"){
-                xhttp.open("PUT", "MANUAL_RUN", true); //this false means synchronous
+                xhttp.open("PUT", "MANUAL_RUN", true);
             }
             else if(currentView === "Scheduling Mode"){
-                const totalEllapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitchingHours").value) * 3600 +
-                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingMinutes").value) * 60 +
-                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingSeconds").value);
+                const totalEllapseTimeS = parseFloat(document.getElementById("ellapseGroup_0_0_hrs").value) * 3600 +
+                                parseFloat(document.getElementById("ellapseGroup_0_0_mins").value) * 60 +
+                                parseFloat(document.getElementById("ellapseGroup_0_0_secs").value);
                 const ellapseTimeMS = totalEllapseTimeS * 1000; //convert to milliseconds
                 if( ellapseTimeMS <= 0 ){
                     alert("Please set a positive elapsed time.");
@@ -362,13 +366,13 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 // update 
                 updateScheduleOnHost(ellapseTimeMS, scheduledDateTimeStampMS); //stores schedule and ellapse on esp32 c++ global variables
 
-                xhttp.open("PUT", "SCHEDULE_RUN", true); //this true means not synchronous
+                xhttp.open("PUT", "SCHEDULE_RUN", false); //synchronous
             }
             xhttp.send();
         }
         function kill(){
             var xhttp = new XMLHttpRequest();
-            xhttp.open("PUT", "KILL", false); //this false means synchronous
+            xhttp.open("PUT", "KILL", false); //synchronous
             xhttp.send(currentView);
         }
         
@@ -413,7 +417,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 document.getElementById("checkbox_manual" + i).checked = false;
                 document.getElementById("checkbox_schedule" + i).checked = false;
             }
-            xhttp.open("PUT", "RESET", false); //this false means synchronous
+            xhttp.open("PUT", "RESET", false); //synchronous
             xhttp.send(currentView);
         }
 
@@ -433,9 +437,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         function checkEllapseTime(){
             var warningEllapseTime = document.getElementById("ellapseTimeWarning");
-            const totalEllapseTimeS = parseFloat(document.getElementById("ellapseTimeMotorSwitchingHours").value) * 3600 +
-                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingMinutes").value) * 60 +
-                                parseFloat(document.getElementById("ellapseTimeMotorSwitchingSeconds").value);
+            const totalEllapseTimeS = parseFloat(document.getElementById("ellapseGroup_0_0_hrs").value) * 3600 +
+                                parseFloat(document.getElementById("ellapseGroup_0_0_mins").value) * 60 +
+                                parseFloat(document.getElementById("ellapseGroup_0_0_secs").value);
             if( totalEllapseTimeS <= 0 ){
                 warningEllapseTime.style.display = "inline"; // show warning
             }
@@ -452,48 +456,123 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 removeMotor();
             }
         }
+        //issue where motorcount is updated in schedule!!!
 
         function addMotor(){
             var xhttp = new XMLHttpRequest();
+            motorCount++; // Current Added Motor Count
 
             const mySectionManual = document.getElementById("motorControlsManual");
-            const mySectionSchedule = document.getElementById("motorControlsSchedule");
-            motorCount++; // Current Added Motor Count
             const motorConfigManual = `<div class="myDiv">
                     <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox_manual${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}</p>
                     <p><input type="number" min="-90000" max="90000" value="0" id="MRV_manual${motorCount}" onchange="updateMRV(this)"></p>
                 </div>`;
-            const motorConfigSchedule = `<div class="myDiv">
-                    <p style="color: rgb(255, 255, 255);"><input type="checkbox" id="checkbox_schedule${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}</p>
-                    <p><input type="number" min="-90000" max="90000" value="0" id="MRV_schedule${motorCount}" onchange="updateMRV(this)"></p>
-                </div>`;
             mySectionManual.insertAdjacentHTML('beforeend', motorConfigManual); // Add new motor content
-            mySectionSchedule.insertAdjacentHTML('beforeend', motorConfigSchedule); // Add new motor content to schedule section
 
+            
+            const mySectionSchedule = document.querySelectorAll(".motor-subgroup > .wrapper");
+            
+            
+            mySectionSchedule.forEach((wrapper, subgroupIndex) => {
+                const parentId = wrapper.parentElement.id; // e.g. motorGroup_0_0
+                const ids = parentId.split("_");
+                const datetimeIndex = ids[1];
+                const subIndex = ids[2];
+
+                const customizedScheduleHTML = `
+                <div class="myDiv">
+                    <p style="color: white;">
+                        <input type="checkbox" id="checkbox_schedule${datetimeIndex}_${subIndex}_${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}
+                    </p>
+                    <p>
+                        <input type="number" min="-90000" max="90000" value="0"
+                            id="MRV_schedule${datetimeIndex}_${subIndex}_${motorCount}"
+                            onchange="updateMRV(this)">
+                    </p>
+                </div>`;
+
+                wrapper.insertAdjacentHTML("beforeend", customizedScheduleHTML);
+            });
             document.getElementById("numMotors").value = motorCount;
 
             xhttp.open("PUT", "ADD_MOTORS?VALUE="+motorCount, true); //this false means synchronous
             xhttp.send();
         }
 
-        function removeMotor(){
+        function removeMotor() {
             var xhttp = new XMLHttpRequest();
 
+            // Remove from Manual Mode
             const mySectionManual = document.getElementById("motorControlsManual");
-            const mySectionSchedule = document.getElementById("motorControlsSchedule");
-                //turn last child off before removing it!
             if (mySectionManual.children.length > 0) {
-                mySectionManual.removeChild(mySectionManual.lastChild); // Remove the last motor
-                mySectionSchedule.removeChild(mySectionSchedule.lastChild); // Remove the last motor from schedule section
-                
-                motorCount--; // Get current count of motors
-                xhttp.open("PUT", "ADD_MOTORS?VALUE="+motorCount, true); //this false means synchronous
-                xhttp.send();
+                mySectionManual.removeChild(mySectionManual.lastChild);
             }
 
-            document.getElementById("numMotors").value = motorCount;
+            // Remove from every Scheduled Subgroup
+            const allScheduleWrappers = document.querySelectorAll(".motor-subgroup > .wrapper");
+            allScheduleWrappers.forEach(wrapper => {
+                if (wrapper.children.length > 0) {
+                    wrapper.removeChild(wrapper.lastElementChild); // remove the last motor div
+                }
+            });
 
+            // Decrement count and sync with ESP
+            if (motorCount > 0) {
+                motorCount--;
+                document.getElementById("numMotors").value = motorCount;
+
+                xhttp.open("PUT", "ADD_MOTORS?VALUE=" + motorCount, true); // Send new count to ESP
+                xhttp.send();
+            }
         }
+
+
+        function addMotorGroup(dateTimeIndex){
+            addMotorSubGroup(dateTimeIndex);
+            addEllapseSubGroup(dateTimeIndex);
+        }
+
+        function addMotorSubGroup(datetimeIndex) {
+            const motorWrapper = document.getElementById(`motorSubGroups_${datetimeIndex}`);
+            const subgroupCount = motorWrapper.children.length;
+
+            const motorGroupId = `motorGroup_${datetimeIndex}_${subgroupCount}`;
+            let html = `<div class="motor-subgroup" id="${motorGroupId}"><div class="wrapper">`;
+
+            for (let i = 1; i <= motorCount; i++) {
+                html += `
+                <div class="myDiv">
+                    <p style="color: white;">
+                    <input type="checkbox" id="checkbox_schedule${datetimeIndex}_${subgroupCount}_${i}" onchange="toggleCheckbox(this)"> Motor ${i}
+                    </p>
+                    <p>
+                    <input type="number" min="-90000" max="90000" value="0"
+                        id="MRV_schedule${datetimeIndex}_${subgroupCount}_${i}"
+                        onchange="updateMRV(this)">
+                    </p>
+                </div>`;
+            }
+
+            html += `</div></div>`;
+            motorWrapper.insertAdjacentHTML("beforeend", html);
+            }
+
+            function addEllapseSubGroup(datetimeIndex) {
+            const ellapseWrapper = document.getElementById(`ellapseSubGroups_${datetimeIndex}`);
+            const subgroupCount = ellapseWrapper.children.length;
+
+            const html = `
+                <div class="ellapse-subgroup" id="ellapseGroup_${datetimeIndex}_${subgroupCount}" style="margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <input style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
+                    <input style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
+                    <input style="width:40px;" type="number" value="0" min="0"> secs
+                </div>
+                </div>`;
+
+            ellapseWrapper.insertAdjacentHTML("beforeend", html);
+        }
+
 
     </script>
 </html>
