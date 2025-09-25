@@ -28,8 +28,8 @@ int currentNumOfMotors = 0; //Max number of motor in use!
 const int MAX_PINS = 7; //Max number of GPIO pins available for motors.
 
 // GPIO pins vairables
-std::vector<int> motorPins; //FIX!!! Don't USE 5!
-const int motorPinPool[MAX_PINS] = {23, 22, 5, 4, 21, 19, 18};//possible pin order
+std::vector<int> motorPins; //FIX!!! Don't USE 5! 5 -> 25
+const int motorPinPool[MAX_PINS] = {23, 22, 25, 4, 21, 19, 18};//possible pin order
 
 // Motor state variables
 const int MRV = 90000; //max rotational velocity
@@ -243,7 +243,9 @@ void setMotors(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-//checkbox individual toggles
+//DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}
+
+//checkbox individual toggles 
 void toggleCheckbox(){
   int num = server.arg("MOTORNUM").toInt(); //get the checkbox number from the request
   bool checkState = (server.arg("STATE") == "true"); //checkState saves boolean equivalance outcome.
@@ -353,19 +355,12 @@ void killMotors(){
 
 //reset all data
 void reset(){
-  String viewNav = server.arg("plain"); //plain means send raw data (viewState)
+  String viewNav = server.arg("VIEW");
   for( int i = 1; i <= currentNumOfMotors; i++){
     setMotorNumRunKill(i, 0, true, true); //num, value, run, kill (kill takes priority)
-    setMotorNumRunKill(i, 0); //setting motors to 0 (check this migh be redundant)
   }
-  if(viewNav == "Scheduling Mode"){
-    setCheckboxesOn(); //turn On all checkboxes in background of Scheduling view
-    //!check later becuase setting checkbox in background might not be nessasary
-  }
-  else if(viewNav == "Manual Mode"){
-    setCheckboxesOff(); //turn Off all checkboxes in background of Manual view
-  }
-  server.send(200, "text/plain", ""); //Send web page ok
+  setCheckboxesOff();
+  server.send(200, "text/plain", "");
 }
 
 void MotorControlTask(void *pvParameters) {

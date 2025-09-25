@@ -131,7 +131,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             </span>
             <div style="align-items: center; justify-content: center;"> <!-- Dynamically change motor num numbox -->
                 <label for="numMotors" style="color: white;">Number of Motors:</label>
-                <input type="number" min="0" max="30" value="0" id="numMotors" onchange="addMotors(this.value)"></input>
+                <input type="number" min="0" max="8" value="0" id="numMotors" onchange="addMotors(this.value)"></input>
             </div>
             <div class="nav-links">
                 <a href="javascript:void(0)" onclick="showView('Manual Mode')">Manual Mode</a>
@@ -205,24 +205,24 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                             <!-- SubGroup 0 -->
                             <div class="motor-subgroup" id="motorGroup_0_0" style="margin-bottom: 10px;">
                                 <div class="wrapper">
-                                    <!-- dynamically allocated using js HERE using topnav-->
+                                    <!-- dynamically allocated motor nums js HERE using topnav-->
                                 </div>
                             </div>
+                            <!-- JS dynamically adds Subgroups -->
                         </div>
-                        <!-- JS dynamically adds Subgroups -->
                     </td>
                     <td class="ellapse-col">
                         <div id="ellapseSubGroups_0">
                             <!-- SubGroup 0 -->
-                            <div class="ellapse-subgroup" id="ellapseGroup_0_0" style="margin-bottom: 10px;">
+                            <div class="ellapse-subgroup" id="ellapseGroup_0_0" style="align-items: center;">
                                 <div style="display: flex; align-items: center; justify-content: center;">
                                     <input id="ellapseGroup_0_0_hrs" style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
                                     <input id="ellapseGroup_0_0_mins" style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
                                     <input id="ellapseGroup_0_0_secs" style="width:40px;" type="number" value="0" min="0"> secs
                                 </div>
                             </div>
+                            <!-- JS dynamically adds Subgroups -->
                         </div>
-                        <button onclick="addMotorGroup(0)">+ Add Elapse Field</button>
                     <div style="color: orange; font-size: 0.8em;">Range (0,inf).</div>
                     </td>
                     <!-- Dynamically Add new Motor Modify and ElapseTime -->
@@ -230,6 +230,16 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 </tr>
                 <!-- Dynamic Add New Datetime Row Here -->
             </table>
+            <div style="display: flex; justify-content: center; gap: 40px; margin-top: 10px;">
+                <div style="display: block;">
+                    <button onclick="addDateTimeRow()">+ Add DateTime Row</button>
+                    <button onclick="removeDateTimeRow()">- Remove DateTime Row</button>
+                </div>
+                <div style="display: block;">
+                    <button onclick="addMotorElapseGroups(0)">+ Add Elapse Field</button>
+                    <button onclick="removeMotorElapseGroups(0)">- Remove Elapse Field</button>
+                </div>
+            </div>
         </div>
         <!-- outside both page div sections. The following code is global to all pages on website -->
         <!-- Run and kill buttons -->
@@ -271,7 +281,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
     
         function setCheckboxesOn(){
-            const checkboxes = document.querySelectorAll('[id^="checkbox"]');
+            const checkboxes = document.querySelectorAll('[id^="checkbox_manual"]');
     
             checkboxes.forEach(cb => {
                 cb.checked = true;
@@ -298,15 +308,19 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
         //<toggle checkboxes>
         function toggleCheckbox(checkboxElem) {
-            const strid = checkboxElem.id.match(/\d+_\d+_\d+/); // parse 2d dynamic array with checkbox state.
-                                            // DatetimeIndex_Subgroup_MotorNum
-            const [datetimeIndex, subgroupIndex, motorNum] = strid[0].split('_').map(Number);
             const isChecked = checkboxElem.checked;
-
-            // Build the URL dynamically based on checkbox id
-            const url = `TOGGLE_CHECKBOX?DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
-
-            // Use XMLHttpRequest synchronously (like your original code)
+            let url = "";
+            if(currentView === "Manual Mode"){
+                const strid = checkboxElem.id.match(/\d+/); // parse motor number from id "checkbox_manualX"
+                const motorNum = parseInt(strid[0], 10); // Convert to integer
+                url = `TOGGLE_CHECKBOX?MOTORNUM=${motorNum}&STATE=${isChecked}`;
+            }
+            else{ //scheduling mode
+                const strid = checkboxElem.id.match(/\d+_\d+_\d+/); // parse 2d dynamic array with checkbox state.
+                                            // DatetimeIndex_Subgroup_MotorNum
+                const [datetimeIndex, subgroupIndex, motorNum] = strid[0].split('_').map(Number);
+                url = `TOGGLE_CHECKBOX?DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
+            }
             var xhttp = new XMLHttpRequest();
             xhttp.open("PUT", url, false);  // synchronous request
             xhttp.send();
@@ -409,16 +423,15 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             var xhttp = new XMLHttpRequest();
             // Reset all motor velocities (1 through 7) and the "All" field
             document.getElementById("MotorRotationalVelocityAll").value = 0;
-            for (let i = 1; i <= motorCount; i++) {
-                document.getElementById("MotorRotationalVelocity" + i).value = 0;
-            }
-            // Reset checkboxes (1 through 7)
-            for (let i = 1; i <= motorCount; i++) {
-                document.getElementById("checkbox_manual" + i).checked = false;
-                document.getElementById("checkbox_schedule" + i).checked = false;
-            }
-            xhttp.open("PUT", "RESET", false); //synchronous
-            xhttp.send(currentView);
+            
+            const motorInputs = document.querySelectorAll('[id^="MRV"]');
+            motorInputs.forEach(input => input.value = 0);
+
+            const manualBoxes = document.querySelectorAll('[id^="checkbox"]');
+            manualBoxes.forEach(cb => cb.checked = false);
+
+            xhttp.open("PUT", "RESET?VIEW="+currentView, false); //synchronous
+            xhttp.send();
         }
 
         function verifyRangeMRV( MRVRaw ){
@@ -449,6 +462,14 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
         // Dynamic implemntation
         function addMotors( desiredMotorCount ) {
+            if (desiredMotorCount > 8) {
+                document.getElementById("numMotors").value = 8;
+                desiredMotorCount = 8; // Max limit
+            }
+            else if (desiredMotorCount < 0) {
+                document.getElementById("numMotors").value = 0;
+                desiredMotorCount = 0; // Min limit
+            }
             while (motorCount < desiredMotorCount) {
                 addMotor();
             }
@@ -527,7 +548,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
 
-        function addMotorGroup(dateTimeIndex){
+        function addMotorElapseGroups(dateTimeIndex){
             addMotorSubGroup(dateTimeIndex);
             addEllapseSubGroup(dateTimeIndex);
         }
@@ -541,8 +562,9 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
 
             for (let i = 1; i <= motorCount; i++) {
                 html += `
+                <hr style="border: 1px solid #white; margin-top: 10px; margin-bottom: 10px;">
                 <div class="myDiv">
-                    <p style="color: white;">
+                    <p style="color: white; text-align: center;">
                     <input type="checkbox" id="checkbox_schedule${datetimeIndex}_${subgroupCount}_${i}" onchange="toggleCheckbox(this)"> Motor ${i}
                     </p>
                     <p>
@@ -562,6 +584,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             const subgroupCount = ellapseWrapper.children.length;
 
             const html = `
+                <hr style="border: 1px solid #white; margin-top: 10px; margin-bottom: 10px;">
                 <div class="ellapse-subgroup" id="ellapseGroup_${datetimeIndex}_${subgroupCount}" style="margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; justify-content: center;">
                     <input style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
@@ -571,6 +594,14 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 </div>`;
 
             ellapseWrapper.insertAdjacentHTML("beforeend", html);
+        }
+
+        //needs to keep track of which row it's tied to
+        function removeMotorSubGroup(datetimeIndex) {
+            const motorWrapper = document.getElementById(`motorSubGroups_${datetimeIndex}`);
+            if (motorWrapper.children.length > 0) {
+                motorWrapper.removeChild(motorWrapper.lastChild);
+            }
         }
 
 
