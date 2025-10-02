@@ -1,8 +1,8 @@
 #include <WiFi.h> // contains WiFi class which creates a WiFi object. Simplifies the connection to a WiFi network.
 #include <WebServer.h> // contains WebServer class which creates a server object. Simplifies the connection to a web server.
 #include "Charzard.h" // contains the HTML code and JS logic of the web server.
-#include "time.h" // Contains time functions
-#include "esp_sntp.h" // NTP (Network Time Protocol) client functionality
+#include <time.h> // Contains time functions
+#include <esp_sntp.h> // NTP (Network Time Protocol) client functionality
 #include <vector>
 
 /* What's next to do:
@@ -148,9 +148,10 @@ void setup() {
   server.begin();
 
 
-  // Utalizing ESP32's FreeRTOS to create a tasks to run time sensative code.
-  /* Size allocated from 7 tasts = 4 kb * 7 = 28 kb 
-  of stack memory out of 320kb DRAM and 200kb IRAM.*/ 
+  // Utilizing ESP32's FreeRTOS to create a tasks to run time sensitive code.
+  /* Size allocated from 8 tasks = 4 kb * 8 = 32 kb
+  of stack memory out of 320kb DRAM and 200kb IRAM. */
+  setupTasksController(); //this task will control all motor tasks.
   setupMotorTasks();
 }
 
@@ -191,8 +192,8 @@ void setMotorNumRunKill( int num, int value, int run = false, int kill = false )
   int motorIndex = num - 1; // Convert 1-indexed motor ID to 0-indexed array index
 
   if (kill == true) {
-    //void updateMotor( &stepper_driver_6, 0 ); //stop motor
     analogWrite(motorPins[motorIndex], 0); // Turn off motor
+    //updateMotor( num, 0 ); // Update motor to 0 velocity
     return; // Kill takes priority, so no further processing for this call
   }
 
@@ -201,10 +202,11 @@ void setMotorNumRunKill( int num, int value, int run = false, int kill = false )
   motorTurnVelocity255[num] = map(motorTurnVelocityRaw[num], -MRV, MRV, 0, 255);
 
   if (run == true) {
-    //void updateMotor( &stepper_driver_6, motorTurnVecolityRaw[num] ); //start motor
+    //updateMotor( num, motorTurnVelocity[num] ); // Update motor using the new velocity
     analogWrite(motorPins[motorIndex], motorTurnVelocity255[num]);
   }
 }
+
 
 //functions
 void checkBoxToggleOff( int num ){
@@ -336,12 +338,123 @@ void scheduleMotorsRun(){
   gettimeofday(&tv_now, NULL); // Get the current time
   uint64_t current_unix_ms  = (tv_now.tv_sec * 1000) + (tv_now.tv_usec / 1000); // Convert to milliseconds
   finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
-  
-  for( int i = 0; i < currentNumOfMotors; i++){
-    if(motorTaskActive[i] && checkBoxState[i+1])
-      xTaskNotifyGive(motorTaskHandles[i]); //launch motor X tasks to handle time.
-  }
+
+  xTaskNotifyGive(motorTaskHandles[0]); //notify controller task to run all motors
+
   server.send(200, "text/plain", ""); //Send web page ok
+}
+
+//IMPORTANT PUT TASKSCONTROLTASKS INTO RESET FUNCTINO SO ON KILL IT KILLS THE CONTROL TASK
+void TasksControlTasks(void *pvParameters) {
+  MotorTaskParams_t *params = (MotorTaskParams_t *)pvParameters;
+  int motorId = params->motorId;
+
+  while (true) {
+    // Wait indefinitely until this task receives a notification to run
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // Delay until the scheduled Datetime start time
+    TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
+    vTaskDelay(timeUntilScheduledEvent_DT); //Date delay in cpu ticks
+
+
+    //replace true with vect of motors to run !empty
+    while(true){
+      //keep a count somehow of how many motors to run per group! ***
+
+      //loop through all motors and notify active ones with checkbox on
+      for( int j = 1; j <= currentNumOfMotors; j++){
+        if(motorTaskActive[j] && checkBoxState[j])
+          xTaskNotifyGive(motorTaskHandles[j]);
+          //vector.pop_back() //remove motor from vector after notifying it to run
+      }
+
+      // Wait until group of motors are done before starting the next.
+      for(int j = 1; j <= currentNumOfMotors; j++){
+        while(motorTaskActive[j]){ //wait until all motors are done running
+          j = 1; //reset j to 1 to check all motors again
+        }
+      }
+
+    }
+
+  }
+}
+
+void MotorControlTask(void *pvParameters) {
+  MotorTaskParams_t *params = (MotorTaskParams_t *)pvParameters;
+  int motorId = params->motorId;
+
+  while (true) {
+    // Wait indefinitely until this task receives a notification to run
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // These are global scheduling variables, so they apply to all notified tasks.
+    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_start);
+    TickType_t motorWaitDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_wait);
+
+    
+
+    if (checkBoxState[motorId]) {
+        // need to pass motorparam to test gpio in setMotorNumRunKill dynamically
+        vTaskDelay(motorWaitDuration_DT); // Wait for ellapse before starting the motor
+        setMotorNumRunKill(motorId, motorTurnVelocityRaw[motorId], true, false); // Turn motor ON
+        vTaskDelay(motorRunDuration_DT); // Run ellapse for the specified duration
+        setMotorNumRunKill(motorId, 0, false, true); // Turn motor OFF
+    }
+  }
+}
+
+
+// Thread used to control all threads
+void setupTasksController() {
+  int i = 0;
+  // Check if the task for this slot is not already created
+  if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
+    // Initialize motor-specific parameters for this task
+    motorTaskParams[i].motorId = i; // Motor IDs starting from 1
+
+    motorTaskHandles[i] = xTaskCreateStaticPinnedToCore(
+      TasksControlTasks,                             /* Function to implement the task */
+      ("Motor" + String(i) + "Task").c_str(), /* Name of the task (e.g., "Motor0Task") */
+      1024,                                         /* Stack size in words (4KB) */
+      &motorTaskParams[i],                              /* Task input parameter (pointer to motorParams struct) */
+      1,                                            /* Priority of the task */
+      motorTaskStacks[i],                           /* Stack buffer */
+      &motorTaskTCBs[i],                            /* TCB buffer */
+      1                                             /* Core where the task should run */
+    );
+
+    if (motorTaskHandles[i] != NULL) {
+      motorTaskActive[i] = true; // Mark this task slot as active
+    }
+  }
+}
+
+// Motor threads which vary based on number of motors allocated.
+void setupMotorTasks() {
+  for (int i = 1; i <= currentNumOfMotors; i++) {
+    // Check if the task for this slot is not already created
+    if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
+      // Initialize motor-specific parameters for this task
+      motorTaskParams[i].motorId = i; // Motor IDs starting from 1
+
+      motorTaskHandles[i] = xTaskCreateStaticPinnedToCore(
+        MotorControlTask,                             /* Function to implement the task */
+        ("Motor" + String(i) + "Task").c_str(), /* Name of the task (e.g., "Motor1Task") */
+        1024,                                         /* Stack size in words (4KB) */
+        &motorTaskParams[i],                              /* Task input parameter (pointer to motorParams struct) */
+        1,                                            /* Priority of the task */
+        motorTaskStacks[i],                           /* Stack buffer */
+        &motorTaskTCBs[i],                            /* TCB buffer */
+        1                                             /* Core where the task should run */
+      );
+
+      if (motorTaskHandles[i] != NULL) {
+        motorTaskActive[i] = true; // Mark this task slot as active
+      }
+    }
+  }
 }
 
 // kills all motors.
@@ -364,32 +477,6 @@ void reset(){
   server.send(200, "text/plain", "");
 }
 
-void MotorControlTask(void *pvParameters) {
-  MotorTaskParams_t *params = (MotorTaskParams_t *)pvParameters;
-  int motorId = params->motorId;
-
-  while (true) {
-    // Wait indefinitely until this task receives a notification to run
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-    // These are global scheduling variables, so they apply to all notified tasks.
-    TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
-    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_start);
-    TickType_t motorWaitDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_wait);
-
-    // Delay until the scheduled Datetime start time
-    vTaskDelay(timeUntilScheduledEvent_DT); //Date delay in cpu ticks
-
-    if (checkBoxState[motorId]) {
-        // need to pass motorparam to test gpio in setMotorNumRunKill dynamically
-        vTaskDelay(motorWaitDuration_DT); // Wait for ellapse before starting the motor
-        setMotorNumRunKill(motorId, motorTurnVelocityRaw[motorId], true, false); // Turn motor ON
-        vTaskDelay(motorRunDuration_DT); // Run ellapse for the specified duration
-        setMotorNumRunKill(motorId, 0, false, true); // Turn motor OFF
-    }
-  }
-}
-
 //update scheduling variables
 void updateLocalDateTimeStampMS(){
   String scheduledDateTimeStampMS_str = server.arg("VALUE");
@@ -407,33 +494,6 @@ void updateMRVRaw(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
-// This function will initially create all currentNumOfMotors tasks.
-// later refine it to only create tasks of motors that are 'added' by the user.
-// For now, it makes sure all potential tasks are set up at boot.
-void setupMotorTasks() {
-  for (int i = 0; i < currentNumOfMotors; i++) {
-    // Check if the task for this slot is not already created
-    if (motorTaskHandles[i] == NULL) { // Check if handle is NULL to indicate not created
-      // Initialize motor-specific parameters for this task
-      motorTaskParams[i].motorId = i + 1; // Motor IDs starting from 1
-
-      motorTaskHandles[i] = xTaskCreateStaticPinnedToCore(
-        MotorControlTask,                             /* Function to implement the task */
-        ("Motor" + String(i + 1) + "Task").c_str(), /* Name of the task (e.g., "Motor1Task") */
-        1024,                                         /* Stack size in words (4KB) */
-        &motorTaskParams[i],                              /* Task input parameter (pointer to motorParams struct) */
-        1,                                            /* Priority of the task */
-        motorTaskStacks[i],                           /* Stack buffer */
-        &motorTaskTCBs[i],                            /* TCB buffer */
-        1                                             /* Core where the task should run */
-      );
-
-      if (motorTaskHandles[i] != NULL) {
-        motorTaskActive[i] = true; // Mark this task slot as active
-      }
-    }
-  }
-}
 
 void deleteMotorTasks(){
   for (int i = 0; i < currentNumOfMotors; i++) {
