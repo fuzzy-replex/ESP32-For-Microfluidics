@@ -15,8 +15,8 @@
 */
 
 // The ssid and password are the typical wifi or network connection credentials
-const char* ssid     = "YoureInAComaWakeUp"; 
-const char* password = "WakeUpEthan";
+const char* ssid     = "ericPhone";//"YoureInAComaWakeUp"; 
+const char* password = "apple123";//"WakeUpEthan";
 
 //NTP configuration
 const char* ntpServer = "pool.ntp.org"; // Standard NTP server pool
@@ -42,7 +42,8 @@ bool checkBoxState[MAX_PINS+1] = {false}; //checkBoxState[0] never used
 WebServer server(80);
 
 // Global Scheduling variables
-volatile uint32_t ellapseMotorTimeMS; //time in ms
+volatile uint32_t ellapseMotorTimeMS_start; //time in ms
+volatile uint32_t ellapseMotorTimeMS_wait; //time in ms
 int scheduledMRVRaw = 0; //scheduled motor rotational velocity
 volatile uint64_t scheduledDateTimeStampUTCMS; //UTC local date and time in ms
 volatile uint64_t finalDelayMsToScheduledEvent; // Will store the calculated delay from now until the scheduled event.
@@ -373,15 +374,17 @@ void MotorControlTask(void *pvParameters) {
 
     // These are global scheduling variables, so they apply to all notified tasks.
     TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
-    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS);
+    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_start);
+    TickType_t motorWaitDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_wait);
 
     // Delay until the scheduled Datetime start time
-    vTaskDelay(timeUntilScheduledEvent_DT); //delay in cpu ticks
+    vTaskDelay(timeUntilScheduledEvent_DT); //Date delay in cpu ticks
 
     if (checkBoxState[motorId]) {
         // need to pass motorparam to test gpio in setMotorNumRunKill dynamically
+        vTaskDelay(motorWaitDuration_DT); // Wait for ellapse before starting the motor
         setMotorNumRunKill(motorId, motorTurnVelocityRaw[motorId], true, false); // Turn motor ON
-        vTaskDelay(motorRunDuration_DT); // Run for the specified duration
+        vTaskDelay(motorRunDuration_DT); // Run ellapse for the specified duration
         setMotorNumRunKill(motorId, 0, false, true); // Turn motor OFF
     }
   }
@@ -394,7 +397,9 @@ void updateLocalDateTimeStampMS(){
   server.send(200, "text/plain", ""); //Send web page ok
 }
 void updateEllapseTime(){
-  ellapseMotorTimeMS = server.arg("VALUE").toInt();
+  ellapseMotorTimeMS_start = server.arg("START").toInt();
+  ellapseMotorTimeMS_wait = server.arg("WAIT").toInt();
+
   server.send(200, "text/plain", ""); //Send web page ok
 }
 void updateMRVRaw(){
