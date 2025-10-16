@@ -104,7 +104,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             max-width: 420px;
             width: auto;
         }
-        th.ellapse-col, td.ellapse-col {
+        th.elapse-col, td.elapse-col {
             width: 200px;
         }
         tr:nth-child(even) {
@@ -122,11 +122,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             word-break: break-word;
             text-align: center;
         }/* Make the wrapper fill its parent table cell */
-        .ellapse-col {
+        .elapse-col {
             height: 100%;          /* let the td expand */
         }
 
-        .ellapse-wrapper {
+        .elapse-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -134,7 +134,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             height: 100%;                   /* take full height of parent td */
         }
 
-        .ellapse-subgroup {
+        .elapse-subgroup {
             flex: 1;                         /* each subgroup takes equal share */
             display: flex;
             justify-content: center;
@@ -151,7 +151,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             width: 40px;
             text-align: center;
         }
-        .ellapse-subgroup hr {
+        .elapse-subgroup hr {
             width: 100%;
             border: none;
             border-top: 1px solid #aaa;  /* or white depending on your theme */
@@ -226,7 +226,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                     </th>
 
                     <th>
-                        <div class="ellapse-col crumpleByWord">
+                        <div class="elapse-col crumpleByWord">
                             Elapse Time
                         </div>
                         <div style="font-size: 0.6em;">
@@ -242,7 +242,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                     <td class="motor-col">
                         <div id="motorSubGroups_0">
                             <!-- SubGroup 0 -->
-                            <div class="motor-subgroup" id="motorGroup_0_0" style="margin-bottom: 10px;">
+                            <div class="motor-subgroup" id="motorGroup_0" style="margin-bottom: 10px;">
                                 <div class="wrapper">
                                     <!-- dynamically allocated motor nums js HERE using topnav-->
                                 </div>
@@ -250,18 +250,13 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                             <!-- JS dynamically adds Subgroups -->
                         </div>
                     </td>
-                    <td class="ellapse-col">
-                        <div id="ellapseSubGroups_0" class="ellapse-wrapper">
+                    <td class="elapse-col">
+                        <div id="elapseSubGroups" class="elapse-wrapper">
                             <!-- SubGroup 0 -->
-                            <div class="ellapse-subgroup" id="ellapseGroup_0_0" style="align-items: center;">
+                            <div class="elapse-subgroup" id="elapseGroup_0" style="align-items: center;">
                                 <div style="display: flex; align-items: center; justify-content: center;">
-                                    <input id="ellapseGroupS_0_0_hrs" style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
-                                    <input id="ellapseGroupS_0_0_mins" style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
-                                    <input id="ellapseGroupS_0_0_secs" style="width:40px;" type="number" value="0" min="0"> secs
-                                    Wait:&nbsp;
-                                    <input id="ellapseGroupW_0_0_hrs" style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
-                                    <input id="ellapseGroupW_0_0_mins" style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
-                                    <input id="ellapseGroupW_0_0_secs" style="width:40px;" type="number" value="0" min="0"> secs
+                                    <input id="elapseGroup_0_mins" style="width:40px;" type="number" value="0" min="0" oninput="updateElapseTime()"> mins&nbsp;:&nbsp;
+                                    <input id="elapseGroup_0_secs" style="width:40px;" type="number" value="0" min="0" oninput="updateElapseTime()"> secs
                                 </div>
                             </div>
                             <!-- JS dynamically adds Subgroups -->
@@ -270,16 +265,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                     <!-- Dynamically Add new Motor Modify and ElapseTime -->
                     <!-- End Dynamically Add new Motor Modify and ElapseTime -->
                 </tr>
-                <!-- Dynamic Add New Datetime Row Here -->
             </table>
             <div style="display: flex; justify-content: center; gap: 40px; margin-top: 10px;">
                 <div style="display: block;">
-                    <button onclick="addDateTimeRow()">+ Add DateTime Row</button>
-                    <button onclick="removeDateTimeRow()">- Remove DateTime Row</button>
-                </div>
-                <div style="display: block;">
-                    <button onclick="addMotorElapseGroups(0)">+ Add Elapse Field</button>
-                    <button onclick="removeMotorElapseGroups(0)">- Remove Elapse Field</button>
+                    <button onclick="addMotorElapseGroups()">+ Add Elapse Field</button>
+                    <button onclick="removeMotorElapseGroups()">- Remove Elapse Field</button>
                 </div>
             </div>
         </div>
@@ -295,6 +285,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
     <script type="text/javascript">
         let currentView = "Manual Mode"; // Track current view
         var motorCount = 0; // Track number of motors added dynamically
+        var subgroupCount = 1; // Track number of motor subgroups in scheduling mode
         
         //microfluidics webdisplay functions
         function setAllMotors(){
@@ -355,13 +346,12 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             if(currentView === "Manual Mode"){
                 const strid = checkboxElem.id.match(/\d+/); // parse motor number from id "checkbox_manualX"
                 const motorNum = parseInt(strid[0], 10); // Convert to integer
-                url = `TOGGLE_CHECKBOX?MOTORNUM=${motorNum}&STATE=${isChecked}`;
+                url = `TOGGLE_CHECKBOX?SUBGROUP_INDEX=${0}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
             }
             else{ //scheduling mode
-                const strid = checkboxElem.id.match(/\d+_\d+_\d+/); // parse 2d dynamic array with checkbox state.
-                                            // DatetimeIndex_Subgroup_MotorNum
-                const [datetimeIndex, subgroupIndex, motorNum] = strid[0].split('_').map(Number);
-                url = `TOGGLE_CHECKBOX?DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
+                const strid = checkboxElem.id.match(/_\d+_\d+/); // parse 2d dynamic array with checkbox state.
+                const [subgroupIndex, motorNum] = strid[0].split('_').map(Number);
+                url = `TOGGLE_CHECKBOX?SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
             }
             var xhttp = new XMLHttpRequest();
             xhttp.open("PUT", url, false);  // synchronous request
@@ -370,15 +360,15 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         //</toggle checkboxes>
         //<update MRV>
         function updateMRV(inputElem) {
-            const strid = inputElem.id.match(/\d+_\d+_\d+/); // parse 2d dynamic array with checkbox state.
-                                            // DatetimeIndex_Subgroup_MotorNum
-            const [datetimeIndex, subgroupIndex, motorNum] = strid[0].split('_').map(Number);
+            const strid = inputElem.id.match(/\d+_\d+/); // parse 2d dynamic array with checkbox state.
+            const [ subgroupIndex, motorNum] = strid[0].split('_').map(Number);
+            
             let MRVRaw = inputElem.value;
             MRVRaw = rangeRestrictionMVR(MRVRaw); // Ensure MRVRaw is within the specified range
             document.getElementById(inputElem.id).value = MRVRaw; // Update the input value
 
             // Build the URL dynamically based on input id
-            const url = `SET_MRV?DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&VALUE=${MRVRaw}`;
+            const url = `SET_MRV?SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&VALUE=${MRVRaw}`;
 
             var xhttp = new XMLHttpRequest();
             xhttp.open("PUT", url, false);  // synchronous request
@@ -393,19 +383,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 xhttp.open("PUT", "MANUAL_RUN", true);
             }
             else if(currentView === "Scheduling Mode"){
-                // Validate datetime and ellapse times
-                const totalEllapseTimeS = parseFloat(document.getElementById("ellapseGroupS_0_0_hrs").value) * 3600 +
-                                          parseFloat(document.getElementById("ellapseGroupS_0_0_mins").value) * 60 +
-                                          parseFloat(document.getElementById("ellapseGroupS_0_0_secs").value);
-                const totalEllapseTimeW = parseFloat(document.getElementById("ellapseGroupW_0_0_hrs").value) * 3600 +
-                                          parseFloat(document.getElementById("ellapseGroupW_0_0_mins").value) * 60 +
-                                          parseFloat(document.getElementById("ellapseGroupW_0_0_secs").value);
-                if( totalEllapseTimeS <= 0 ){
+                // Validate datetime and elapse times
+                const totalelapseTimeS = parseFloat(document.getElementById("elapseGroup_0_mins").value) * 60 +
+                                          parseFloat(document.getElementById("elapseGroup_0_secs").value);
+                if( totalelapseTimeS <= 0 ){
                     alert("Please set a positive elapsed time.");
-                    return;
-                }
-                if( totalEllapseTimeW <= 0 ){
-                    alert("Please set a positive wait time.");
                     return;
                 }
 
@@ -426,9 +408,8 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 }
 
                 //convert to milliseconds
-                const ellapseTimeMS_start = totalEllapseTimeS * 1000;
-                const ellapseTimeMS_wait = totalEllapseTimeW * 1000;
-                updateScheduleOnHost(ellapseTimeMS_start, ellapseTimeMS_wait, scheduledDateTimeStampMS); //stores schedule and ellapse on esp32 c++ global variables
+                const elapseTimeMS_start = totalelapseTimeS * 1000;
+                updateScheduleOnHost(elapseTimeMS_start, scheduledDateTimeStampMS); //stores schedule and elapse on esp32 c++ global variables
 
                 xhttp.open("PUT", "SCHEDULE_RUN", false); //synchronous
             }
@@ -489,13 +470,13 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             document.getElementById("scheduledMRV").value = MRVRaw;
         }
 
-        function updateScheduleOnHost(ellapseTimeMS_start, ellapseTimeMS_wait, scheduledDateTimeStampMS){
+        function updateScheduleOnHost(elapseTimeMS_start, scheduledDateTimeStampMS){
             var xhttpDateTime = new XMLHttpRequest();
             xhttpDateTime.open("PUT", "SCHEDULED_DATE_TIME?VALUE="+scheduledDateTimeStampMS, false);
             xhttpDateTime.send();
-            var xhttpEllapse = new XMLHttpRequest();
-            xhttpEllapse.open("PUT", "SCHEDULE_ELLAPSE_TIME?START="+ellapseTimeMS_start+"&WAIT="+ellapseTimeMS_wait, false);
-            xhttpEllapse.send();
+            var xhttpelapse = new XMLHttpRequest();
+            xhttpelapse.open("PUT", "SCHEDULE_elapse_TIME?START="+elapseTimeMS_start, false);
+            xhttpelapse.send();
         }
 
         // Dynamic implemntation
@@ -535,17 +516,16 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             mySectionSchedule.forEach((wrapper, subgroupIndex) => {
                 const parentId = wrapper.parentElement.id; // e.g. motorGroup_0_0
                 const ids = parentId.split("_");
-                const datetimeIndex = ids[1];
                 const subIndex = ids[2];
 
                 const customizedScheduleHTML = `
                 <div class="myDiv">
                     <p style="color: white;">
-                        <input type="checkbox" id="checkbox_schedule${datetimeIndex}_${subIndex}_${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}
+                        <input type="checkbox" id="checkbox_schedule${subIndex}_${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}
                     </p>
                     <p>
                         <input type="number" min="-90000" max="90000" value="0"
-                            id="MRV_schedule${datetimeIndex}_${subIndex}_${motorCount}"
+                            id="MRV_schedule${subIndex}_${motorCount}"
                             onchange="updateMRV(this)">
                     </p>
                 </div>`;
@@ -586,16 +566,19 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         }
 
 
-        function addMotorElapseGroups(dateTimeIndex){
-            addMotorSubGroup(dateTimeIndex);
-            addEllapseSubGroup(dateTimeIndex);
+        function addMotorElapseGroups(){
+            addMotorSubGroup();
+            addelapseSubGroup();
+            subgroupCount++;
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("PUT", "ADD_ELAPSE_FIELD?SG_COUNT=" + subgroupCount, false); //synchronous
+            xhttp.send();
         }
 
-        function addMotorSubGroup(datetimeIndex) {
-            const motorWrapper = document.getElementById(`motorSubGroups_${datetimeIndex}`);
+        function addMotorSubGroup() {
             const subgroupCount = motorWrapper.querySelectorAll(".motor-subgroup").length;
 
-            const motorGroupId = `motorGroup_${datetimeIndex}_${subgroupCount}`;
+            const motorGroupId = `motorGroup_${subgroupCount}`;
             let html = `<div class="motor-subgroup" id="${motorGroupId}"><div class="wrapper">`;
 
             html += '<hr style="border: none; border-top: 1px solid white; width: 100%; margin: 10px 0;">';
@@ -603,11 +586,11 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 html += `
                 <div class="myDiv">
                     <p style="color: white; text-align: center;">
-                    <input type="checkbox" id="checkbox_schedule${datetimeIndex}_${subgroupCount}_${i}" onchange="toggleCheckbox(this)"> Motor ${i}
+                    <input type="checkbox" id="checkbox_schedule_${subgroupCount}_${i}" onchange="toggleCheckbox(this)"> Motor ${i}
                     </p>
                     <p>
                     <input type="number" min="-90000" max="90000" value="0"
-                        id="MRV_schedule${datetimeIndex}_${subgroupCount}_${i}"
+                        id="MRV_schedule_${subgroupCount}_${i}"
                         onchange="updateMRV(this)">
                     </p>
                 </div>`;
@@ -617,44 +600,61 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             motorWrapper.insertAdjacentHTML("beforeend", html);
         }
 
-        function addEllapseSubGroup(datetimeIndex) {
-            const ellapseWrapper = document.getElementById(`ellapseSubGroups_${datetimeIndex}`);
-            const subgroupCount = ellapseWrapper.querySelectorAll(".ellapse-subgroup").length;
+        function addelapseSubGroup() {
+            const elapseWrapper = document.getElementById(`elapseSubGroups`);
+            const subgroupCount = elapseWrapper.querySelectorAll(".elapse-subgroup").length;
             const html = `
                 <hr style="border: none; border-top: 1px solid white; width: 100%; margin: 10px 0;">
-                <div class="ellapse-subgroup" id="ellapseGroup_${datetimeIndex}_${subgroupCount}" style="margin-bottom: 10px;">
+                <div class="elapse-subgroup" id="elapseGroup_${subgroupCount}" style="margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; justify-content: center;">
-                    <input id="ellapseGroupS_${datetimeIndex}_${subgroupCount}_hrs" style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
-                    <input id="ellapseGroupS_${datetimeIndex}_${subgroupCount}_mins" style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
-                    <input id="ellapseGroupS_${datetimeIndex}_${subgroupCount}_secs" style="width:40px;" type="number" value="0" min="0"> secs&nbsp;:&nbsp;
-                    ->
-                    <input id="ellapseGroupE_${datetimeIndex}_${subgroupCount}_hrs" style="width:40px;" type="number" value="0" min="0"> hrs&nbsp;:&nbsp;
-                    <input id="ellapseGroupE_${datetimeIndex}_${subgroupCount}_mins" style="width:40px;" type="number" value="0" min="0"> mins&nbsp;:&nbsp;
-                    <input id="ellapseGroupE_${datetimeIndex}_${subgroupCount}_secs" style="width:40px;" type="number" value="0" min="0"> secs&nbsp;:&nbsp;
-                </div>
+                    <input id="elapseGroup_${subgroupCount}_mins" style="width:40px;" type="number" value="0" min="0" oninput="updateElapseTime()"> mins&nbsp;:&nbsp;
+                    <input id="elapseGroup_${subgroupCount}_secs" style="width:40px;" type="number" value="0" min="0" oninput="updateElapseTime()"> secs&nbsp;:&nbsp;
                 </div>`;
 
-            ellapseWrapper.insertAdjacentHTML("beforeend", html);
+            elapseWrapper.insertAdjacentHTML("beforeend", html);
+        }
+
+        function updateElapseTime() {
+            const strid = event.target.id.match(/\d+/); // parse group number from id "elapseGroup_X_mins" or "elapseGroup_X_secs"
+            const subgroupIndex = parseInt(strid[0], 10); // Convert to integer
+
+            const mins = parseInt(document.getElementById(`elapseGroup_${subgroupIndex}_mins`).value);
+            const secs = parseInt(document.getElementById(`elapseGroup_${subgroupIndex}_secs`).value);
+
+            if( mins < 0 || secs < 0 ){
+                alert("Please enter non-negative values for minutes and seconds.");
+                return;
+            }
+
+            const totalElapseTimeMS = (mins * 60 + secs) * 1000; // Convert to milliseconds
+
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("PUT", `UPDATE_ELAPSE_TIME?SUBGROUP_INDEX=${subgroupIndex}&ELAPSE_TIME=${totalElapseTimeMS}`, false);
+            xhttp.send();
         }
 
         //needs to keep track of which row it's tied to
-        function removeMotorElapseGroups(datetimeIndex) {
-            const motorWrapper = document.getElementById(`motorSubGroups_${datetimeIndex}`);
-            const ellapseWrapper = document.getElementById(`ellapseSubGroups_${datetimeIndex}`);
+        function removeMotorElapseGroups() {
 
             const motorGroups = motorWrapper.querySelectorAll(".motor-subgroup");
-            const ellapseGroups = ellapseWrapper.querySelectorAll(".ellapse-subgroup");
+            const elapseGroups = elapseWrapper.querySelectorAll(".elapse-subgroup");
 
-            if(motorGroups.length === 1 && ellapseGroups.length === 1){
+            if(motorGroups.length === 1 && elapseGroups.length === 1){
                 return; // Prevent removing the last subgroup
             }
 
             // Only remove if both have at least one subgroup
-            if (motorGroups.length > 0 && ellapseGroups.length > 0) {
+            if (motorGroups.length > 0 && elapseGroups.length > 0) {
                 motorWrapper.removeChild(motorGroups[motorGroups.length - 1]);
-                ellapseWrapper.removeChild(ellapseGroups[ellapseGroups.length - 1]);
-                ellapseWrapper.removeChild(ellapseWrapper.lastElementChild); // remove the last <hr>
+                elapseWrapper.removeChild(elapseGroups[elapseGroups.length - 1]);
+                elapseWrapper.removeChild(elapseWrapper.lastElementChild); // remove the last <hr>
             }
+            if(subgroupCount > 1){
+                subgroupCount--;
+            }
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("PUT", "REMOVE_ELAPSE_FIELD?SG_COUNT=" + subgroupCount, false);
+            xhttp.send();
         }
 
     </script>

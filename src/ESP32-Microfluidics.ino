@@ -33,8 +33,8 @@ const int motorPinPool[MAX_PINS] = {23, 22, 25, 4, 21, 19, 18};//possible pin or
 
 // Motor state variables
 const int MRV = 90000; //max rotational velocity
-int motorTurnVelocityRaw[MAX_PINS+1] = {0}; //Raw is value from -MRV to MRV
-int motorTurnVelocity255[MAX_PINS+1] = {0}; //225 is the Raw mapped to 0-255 for GPIO PWM
+std::vector<std::vector<int>> motorTurnVelocityRaw; //Raw is value from -MRV to MRV
+std::vector<std::vector<int>> motorTurnVelocity255; //225 is the Raw mapped to 0-255 for GPIO PWM
 int motorTime[MAX_PINS] = {0}; //Scheduled time for each motor
 bool checkBoxState[MAX_PINS+1] = {false}; //checkBoxState[0] never used
 
@@ -42,8 +42,7 @@ bool checkBoxState[MAX_PINS+1] = {false}; //checkBoxState[0] never used
 WebServer server(80);
 
 // Global Scheduling variables
-volatile uint32_t ellapseMotorTimeMS_start; //time in ms
-volatile uint32_t ellapseMotorTimeMS_wait; //time in ms
+std::vector<volatile uint32_t> elapseMotorTimeMS; //time in ms
 int scheduledMRVRaw = 0; //scheduled motor rotational velocity
 volatile uint64_t scheduledDateTimeStampUTCMS; //UTC local date and time in ms
 volatile uint64_t finalDelayMsToScheduledEvent; // Will store the calculated delay from now until the scheduled event.
@@ -51,6 +50,7 @@ volatile uint64_t finalDelayMsToScheduledEvent; // Will store the calculated del
 TaskHandle_t motorTaskHandles[MAX_PINS]; //task handle for motors
 StaticTask_t motorTaskTCBs[MAX_PINS]; //task control block for motors
 StackType_t motorTaskStacks[MAX_PINS][1024]; //stack for motors
+int subgroupCount; // Track number of motor subgroups in scheduling mode
 
 typedef struct {
   int motorId; //specific motor
@@ -59,6 +59,13 @@ typedef struct {
 MotorTaskParams_t motorTaskParams[MAX_PINS];
 
 bool motorTaskActive[MAX_PINS] = {false}; //current task status
+
+//Smal refactor
+int currentSubGroup = 0; //index of subgroup currently running
+std::vector<std::vector<bool>> checkBoxStateSubgroups; // [subgroup][motor]
+std::vector<std::vector<int>> motorTurnVelocityRawSubgroups; // [subgroup][motor]
+std::vector<uint32_t> elapseMotorTimeMSSubgroups;
+
 
 void setup() {
   Serial.begin(115200); // set serial baud rate to 115200 
@@ -74,6 +81,19 @@ void setup() {
     digitalWrite(motorPins[i], LOW); //set GPIO pins to low
   }
 
+  // Initialize motor state vectors
+  subgroupCount = 1; //at least one subgroup
+
+  elapseMotorTimeMSSubgroups.resize(subgroupCount); //indexed at 1
+  checkBoxStateSubgroups.resize(subgroupCount);
+  motorTurnVelocityRawSubgroups.resize(subgroupCount);
+  //indexed at 0:
+  elapseMotorTimeMSSubgroups[0] = 0;
+  //indexed at 1:
+  checkBoxStateSubgroups[0].resize(currentNumOfMotors+1); //first index not used
+  motorTurnVelocityRawSubgroups[0].resize(currentNumOfMotors+1); //first index special
+
+  // WIFI CONNECTION SETUP
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
@@ -115,21 +135,14 @@ void setup() {
   // Send webpage
   server.on("/", SendWebsite); //fowardslash is sent by the website on web ip load.
   //Modify ALL motors checkbox requests
-  server.on("/SET_ALL_MOTORS", setMotors); //checkbox 0 is all motors
-  server.on("/UPDATE_MOTOR_ALL_CONTROL", setMotor0); //used to set all motors to a specific value
+  server.on("/SET_ALL_MOTORS", setMotors); // Depends on setMotor0(), assigns manual motors to allMotorValue MRVRAW[0]
+  server.on("/UPDATE_MOTOR_ALL_CONTROL", setMotor0); //updates first index of MRV which is used to set all motors (manual)
   server.on("/SET_CHECKBOXES_ON", setCheckboxesOn);
   server.on("/SET_CHECKBOXES_OFF", setCheckboxesOff);
   //Modify motors checkboxs individually requests
   server.on("/TOGGLE_CHECKBOX", toggleCheckbox); //toggle checkbox on or off
   //Modify motors velocity requests
   server.on("/SET_MRV", setMotorNum); //set a motors to a specific value
-  server.on("/SET_MRV1", setMotor1);
-  server.on("/SET_MRV2", setMotor2);
-  server.on("/SET_MRV3", setMotor3);
-  server.on("/SET_MRV4", setMotor4);
-  server.on("/SET_MRV5", setMotor5);
-  server.on("/SET_MRV6", setMotor6);
-  server.on("/SET_MRV7", setMotor7);
   //Run motors requests
   server.on("/MANUAL_RUN", HTTP_PUT, manualMotorsRun);
   server.on("/SCHEDULE_RUN", HTTP_PUT, scheduleMotorsRun); //run motors in scheduling mode
@@ -139,10 +152,12 @@ void setup() {
   //Scheduling
   //Schuduling Update
   server.on("/SCHEDULED_DATE_TIME", updateLocalDateTimeStampMS);
-  server.on("/SCHEDULE_ELLAPSE_TIME", updateEllapseTime); 
-  server.on("/SCHEDULE_MRVRaw", updateMRVRaw); 
+  server.on("/UPDATE_ELLAPSE_TIME", updateElapsetime);
   //Dynamic Motors
   server.on("/ADD_MOTORS", updateMotorCount); 
+  //Dynamic Elapse Time Fields
+  server.on("/ADD_ELAPSE_FIELD", addMotorElapseGroups);
+  server.on("/REMOVE_ELAPSE_FIELD", removeMotorElapseGroups);
 
   //Start Server
   server.begin();
@@ -180,12 +195,21 @@ void SendWebsite() {
     run:      Runs the motor specified.
     kill:     false, updates the motorTurnVelocityRaw
               true, keeps the previous motorTurnVelocityRaw and sets motor to 0
-              regardless of value.*/
+              regardless of value.
+    manual:   If true, function is called in manual mode.
+    */
 
-void setMotorNumRunKill( int num, int value, int run = false, int kill = false ){
+void setMotorNumRunKill( int num, int value, int run = false, int kill = false, int subGroupIndex = -1 ){
+  int sg = currentSubGroup; //save current subgroup
+  if (subGroupIndex != -1)
+  {
+    sg = subGroupIndex;
+  }
+  
+
   if (num == 0) {
     // Motor 0 controls all motors.
-    motorTurnVelocityRaw[0] = value;
+    motorTurnVelocityRaw[sg][num] = value; // Update the raw value for motor 0
     return; // Exit after handling the special case
   }
 
@@ -193,37 +217,36 @@ void setMotorNumRunKill( int num, int value, int run = false, int kill = false )
 
   if (kill == true) {
     analogWrite(motorPins[motorIndex], 0); // Turn off motor
-    //updateMotor( num, 0 ); // Update motor to 0 velocity
+    //updateMotor( num, motorTurnVelocityRaw[num][0] ); // Update motor to 0 velocity
     return; // Kill takes priority, so no further processing for this call
   }
 
   // If not killing, update velocity and run if 'run' flag is true
-  motorTurnVelocityRaw[num] = value; // Store raw value (use num for consistency with existing arrays)
-  motorTurnVelocity255[num] = map(motorTurnVelocityRaw[num], -MRV, MRV, 0, 255);
+  motorTurnVelocityRaw[sg][num] = value; // Store raw value (use num for consistency with existing arrays)
+  int mapped = map(motorTurnVelocityRaw[sg][num], -MRV, MRV, 0, 255);
 
   if (run == true) {
     //updateMotor( num, motorTurnVelocity[num] ); // Update motor using the new velocity
-    analogWrite(motorPins[motorIndex], motorTurnVelocity255[num]);
+    analogWrite(motorPins[motorIndex], mapped);
   }
 }
 
-
-//functions
-void checkBoxToggleOff( int num ){
-  setMotorNumRunKill(num, 0, true, true); //kill motor if it was on
+//manual checkbox toggles
+void checkBoxToggleOff( int num){
+  int sg = 0;
+  setMotorNumRunKill(num, 0, true, true, sg); //kill motor if it was on
   //toggle checkbox to off
-  if( checkBoxState[num] == true )
-    checkBoxState[num] = false;
+  if( checkBoxStateSubgroups[sg][num] == true )
+    checkBoxStateSubgroups[sg][num] = false;
 }
 
-void checkBoxToggleOn( int num ){
-  //toggle checkbox to on
-  if( checkBoxState[num] == false )
-    checkBoxState[num] = true;
+void checkBoxToggleOn( int num){
+  int sg = 0; //save current subgroup
+  if( checkBoxStateSubgroups[sg][num] == false )
+    checkBoxStateSubgroups[sg][num] = true;
 }
 
 void setCheckboxesOn(){
-  //Serial.println("set buttons on");
   for( int i = 1; i <= currentNumOfMotors; i++){
     checkBoxToggleOn(i); //toggle all checkboxes on
   }
@@ -231,31 +254,32 @@ void setCheckboxesOn(){
 }
 
 void setCheckboxesOff(){
-  //Serial.println("set checkboxes off");
   for( int i = 1; i <= currentNumOfMotors; i++){
-    setMotorNumRunKill(i, 0, true, true); //toggle all checkboxes off
     checkBoxToggleOff(i); //toggle all checkboxes off
   }
   server.send(200, "text/plain", ""); //Send web page ok
 }
+//end manual checkbox toggles
 
-void setMotors(){
+void setMotors(){ //for manual mode only - first subgroup
+  int sg = 0;
   for( int i = 1; i <= currentNumOfMotors; i++ ){
-    setMotorNumRunKill( i, motorTurnVelocityRaw[0] ); //set all motors to the same value
+    setMotorNumRunKill( i, motorTurnVelocityRaw[sg][0], false, false, sg ); //set all motors to the same value
   }
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
 //DATETIME_INDEX=${datetimeIndex}&SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}
 
-//checkbox individual toggles 
+//checkbox individual toggles (manual & scheduling mode)
 void toggleCheckbox(){
+  int subgroupIndex = server.arg("SUBGROUP_INDEX").toInt();
   int num = server.arg("MOTORNUM").toInt(); //get the checkbox number from the request
   bool checkState = (server.arg("STATE") == "true"); //checkState saves boolean equivalance outcome.
   
-  checkBoxState[num] = checkState; //update checkbox state
+  checkBoxStateSubgroups[subgroupIndex][num] = checkState; //update checkbox state
   if(checkState == false){
-    setMotorNumRunKill(num, 0, true, true); //kill motor if it was on
+    setMotorNumRunKill(num, 0, true, true, subgroupIndex); //kill motor if it was on
   }
   
   server.send(200, "text/plain", ""); //Send web page ok
@@ -265,55 +289,16 @@ void toggleCheckbox(){
 void setMotorNum(){
   int motorNum = server.arg("MOTORNUM").toInt(); //get the motor number from the request
   int MRVRaw = server.arg("VALUE").toInt(); //return string of js int
-  setMotorNumRunKill(motorNum, MRVRaw);
+  int sg = server.arg("SUBGROUP_INDEX").toInt();
+  setMotorNumRunKill(motorNum, MRVRaw, false, false, sg);
+
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
 void setMotor0(){
   int MRVRaw = server.arg("VALUE").toInt(); //return string of js int
-  setMotorNumRunKill(0, MRVRaw);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor1(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(1, MRVRaw);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor2(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(2, MRVRaw, false);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor3(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(3, MRVRaw, false);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor4(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(4, MRVRaw, false);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor5(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(5, MRVRaw, false);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor6(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(6, MRVRaw, false);
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
-void setMotor7(){
-  int MRVRaw = server.arg("VALUE").toInt();
-  setMotorNumRunKill(7, MRVRaw, false);
+  int sg = 0; //manual mode only first subgroup
+  setMotorNumRunKill(0, MRVRaw, false, false, sg);
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
@@ -321,9 +306,10 @@ void setMotor7(){
 ////run motors in manual mode
 void manualMotorsRun(){
   Serial.printf("Manual Mode\n");
+  int sg = 0; //manual mode only first subgroup
   for( int i = 1; i <= currentNumOfMotors; i++){
     if( checkBoxState[i] == true ){
-      setMotorNumRunKill(i, motorTurnVelocityRaw[i], true);
+      setMotorNumRunKill(i, motorTurnVelocityRaw[sg][i], true);
     }
   }
   server.send(200, "text/plain", ""); //Send web page ok
@@ -340,7 +326,6 @@ void scheduleMotorsRun(){
   finalDelayMsToScheduledEvent = scheduledDateTimeStampUTCMS - current_unix_ms; //time until scheduled date ms
 
   xTaskNotifyGive(motorTaskHandles[0]); //notify controller task to run all motors
-
   server.send(200, "text/plain", ""); //Send web page ok
 }
 
@@ -352,32 +337,30 @@ void TasksControlTasks(void *pvParameters) {
   while (true) {
     // Wait indefinitely until this task receives a notification to run
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-    // Delay until the scheduled Datetime start time
-    TickType_t timeUntilScheduledEvent_DT = pdMS_TO_TICKS(finalDelayMsToScheduledEvent);
-    vTaskDelay(timeUntilScheduledEvent_DT); //Date delay in cpu ticks
-
+    vTaskDelay(pdMS_TO_TICKS(finalDelayMsToScheduledEvent)); 
 
     //replace true with vect of motors to run !empty
-    while(true){
-      //keep a count somehow of how many motors to run per group! ***
+    for(int sg = 0; sg < subgroupCount; sg++){ //loop through all subgroups
+      currentSubGroup = sg;
 
       //loop through all motors and notify active ones with checkbox on
       for( int j = 1; j <= currentNumOfMotors; j++){
-        if(motorTaskActive[j] && checkBoxState[j])
+        if(checkBoxStateSubgroups[sg][j])
           xTaskNotifyGive(motorTaskHandles[j]);
-          //vector.pop_back() //remove motor from vector after notifying it to run
       }
 
       // Wait until group of motors are done before starting the next.
-      for(int j = 1; j <= currentNumOfMotors; j++){
-        while(motorTaskActive[j]){ //wait until all motors are done running
-          j = 1; //reset j to 1 to check all motors again
+      bool allMotorsDone = false;
+      while(!allMotorsDone){
+        allMotorsDone = true;
+        for(int j = 1; j <= currentNumOfMotors; j++){
+          if(motorTaskActive[j]){
+            allMotorsDone = false;
+            break;
+          }
         }
       }
-
     }
-
   }
 }
 
@@ -389,19 +372,18 @@ void MotorControlTask(void *pvParameters) {
     // Wait indefinitely until this task receives a notification to run
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-    // These are global scheduling variables, so they apply to all notified tasks.
-    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_start);
-    TickType_t motorWaitDuration_DT = pdMS_TO_TICKS(ellapseMotorTimeMS_wait);
+    int sg = currentSubGroup; //capture subgroup at notification time
+    TickType_t motorRunDuration_DT = pdMS_TO_TICKS(elapseMotorTimeMSSubgroups[sg]); //convert ms to ticks
 
-    
+    if (checkBoxStateSubgroups[sg][motorId]) {
+        motorTaskActive[motorId] = true; // Mark this task as active
 
-    if (checkBoxState[motorId]) {
-        // need to pass motorparam to test gpio in setMotorNumRunKill dynamically
-        vTaskDelay(motorWaitDuration_DT); // Wait for ellapse before starting the motor
-        setMotorNumRunKill(motorId, motorTurnVelocityRaw[motorId], true, false); // Turn motor ON
+        int mrv = motorTurnVelocityRawSubgroups[sg][motorId];
+        setMotorNumRunKill(motorId, mrv, true, false); // Turn motor ON
         vTaskDelay(motorRunDuration_DT); // Run ellapse for the specified duration
         setMotorNumRunKill(motorId, 0, false, true); // Turn motor OFF
     }
+    motorTaskActive[motorId] = false; // Mark this task as inactive
   }
 }
 
@@ -483,17 +465,15 @@ void updateLocalDateTimeStampMS(){
   scheduledDateTimeStampUTCMS = strtoull(scheduledDateTimeStampMS_str.c_str(), NULL, 10); //convert string to unsigned long long
   server.send(200, "text/plain", ""); //Send web page ok
 }
-void updateEllapseTime(){
-  ellapseMotorTimeMS_start = server.arg("START").toInt();
-  ellapseMotorTimeMS_wait = server.arg("WAIT").toInt();
+
+void updateElapsetime(){
+  int sg = server.arg("SUBGROUP_INDEX").toInt();
+  int elapseTimeMS = server.arg("ELAPSE_TIME").toInt();
+
+  elapseMotorTimeMSSubgroups[sg-1] = elapseTimeMS; //update elapse time for subgroup
 
   server.send(200, "text/plain", ""); //Send web page ok
 }
-void updateMRVRaw(){
-  scheduledMRVRaw = server.arg("VALUE").toInt();
-  server.send(200, "text/plain", ""); //Send web page ok
-}
-
 
 void deleteMotorTasks(){
   for (int i = 0; i < currentNumOfMotors; i++) {
@@ -525,6 +505,12 @@ void updateMotorCount() {
     }
   }
 
+  // size each subgroup vector to hold motor indexes up to desiredNumOfMotors
+  for(int sg = 0; sg < subgroupCount; sg++){
+    checkBoxStateSubgroups[sg].resize(desiredNumOfMotors + 1, false); // +1 to account for 1-based indexing
+    motorTurnVelocityRawSubgroups[sg].resize(desiredNumOfMotors + 1, 0); // +1 to account for 1-based indexing
+  }
+
   currentNumOfMotors = desiredNumOfMotors; // Update the current number of motors
   updateMotorPins(currentNumOfMotors); // Update the motor count in the system
   server.send(200, "text/plain", ""); //Send web page ok
@@ -543,4 +529,22 @@ void updateMotorPins(int newMotorCount) {
     pinMode(motorPins[i], OUTPUT); // Set GPIO pins to output
     digitalWrite(motorPins[i], LOW); // Set GPIO pins to low
   }
+}
+
+// Allocates by 1
+void addMotorElapseGroups(){
+  subgroupCount = server.arg("SG_COUNT").toInt();  
+  elapseMotorTimeMS.push_back(0); // Add a new elapse time entry initialized to 0
+  checkBoxStateSubgroups.push_back(std::vector<bool>(currentNumOfMotors+1, false)); // Add a new checkbox state vector initialized to false
+  motorTurnVelocityRawSubgroups.push_back(std::vector<int>(currentNumOfMotors+1, 0)); // Add a new motor turn velocity vector initialized to 0
+  server.send(200, "text/plain", ""); //Send web page ok
+}
+
+// Deallocates by 1
+void removeMotorElapseGroups(){
+  subgroupCount = server.arg("SG_COUNT").toInt();
+  elapseMotorTimeMS.pop_back(); // Remove the last elapse time entry
+  checkBoxStateSubgroups.pop_back(); // Remove the last checkbox state vector
+  motorTurnVelocityRawSubgroups.pop_back(); // Remove the last motor turn velocity vector
+  server.send(200, "text/plain", ""); //Send web page ok
 }
