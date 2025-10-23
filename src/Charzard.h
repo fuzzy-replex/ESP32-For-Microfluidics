@@ -349,7 +349,7 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
                 url = `TOGGLE_CHECKBOX?SUBGROUP_INDEX=${0}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
             }
             else{ //scheduling mode
-                const strid = checkboxElem.id.match(/_\d+_\d+/); // parse 2d dynamic array with checkbox state.
+                const strid = checkboxElem.id.match(/\d+_\d+/); // parse 2d dynamic array with checkbox state.
                 const [subgroupIndex, motorNum] = strid[0].split('_').map(Number);
                 url = `TOGGLE_CHECKBOX?SUBGROUP_INDEX=${subgroupIndex}&MOTORNUM=${motorNum}&STATE=${isChecked}`;
             }
@@ -360,9 +360,17 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
         //</toggle checkboxes>
         //<update MRV>
         function updateMRV(inputElem) {
-            const strid = inputElem.id.match(/\d+_\d+/); // parse 2d dynamic array with checkbox state.
-            const [ subgroupIndex, motorNum] = strid[0].split('_').map(Number);
-            
+            let motorNum;
+            let subgroupIndex;
+            if(currentView === "Manual Mode"){
+                const strid = inputElem.id.match(/\d+/); // parse motor number from id "MRV_manualX"
+                motorNum = parseInt(strid[0], 10); // Convert to integer
+                subgroupIndex = 0; // Manual mode only uses subgroup 0
+            }
+            else{ //scheduling mode
+                const strid = inputElem.id.match(/\d+_\d+/); // parse 2d dynamic array with checkbox state.
+                [subgroupIndex, motorNum] = strid[0].split('_').map(Number);
+            }
             let MRVRaw = inputElem.value;
             MRVRaw = rangeRestrictionMVR(MRVRaw); // Ensure MRVRaw is within the specified range
             document.getElementById(inputElem.id).value = MRVRaw; // Update the input value
@@ -474,9 +482,6 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             var xhttpDateTime = new XMLHttpRequest();
             xhttpDateTime.open("PUT", "SCHEDULED_DATE_TIME?VALUE="+scheduledDateTimeStampMS, false);
             xhttpDateTime.send();
-            var xhttpelapse = new XMLHttpRequest();
-            xhttpelapse.open("PUT", "SCHEDULE_elapse_TIME?START="+elapseTimeMS_start, false);
-            xhttpelapse.send();
         }
 
         // Dynamic implemntation
@@ -516,16 +521,16 @@ const char PAGE_MAIN[] PROGMEM = R"rawliteral(
             mySectionSchedule.forEach((wrapper, subgroupIndex) => {
                 const parentId = wrapper.parentElement.id; // e.g. motorGroup_0_0
                 const ids = parentId.split("_");
-                const subIndex = ids[2];
+                const subIndex = ids[1];
 
                 const customizedScheduleHTML = `
                 <div class="myDiv">
                     <p style="color: white;">
-                        <input type="checkbox" id="checkbox_schedule${subIndex}_${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}
+                        <input type="checkbox" id="checkbox_schedule_${subIndex}_${motorCount}" onchange="toggleCheckbox(this)"> Motor ${motorCount}
                     </p>
                     <p>
                         <input type="number" min="-90000" max="90000" value="0"
-                            id="MRV_schedule${subIndex}_${motorCount}"
+                            id="MRV_schedule_${subIndex}_${motorCount}"
                             onchange="updateMRV(this)">
                     </p>
                 </div>`;
